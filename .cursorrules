@@ -1,0 +1,53 @@
+- Mobile-first always. Default Tailwind styles = mobile (390px). md: and above = desktop. Bottom tab bar on mobile, sidebar on desktop. No exceptions at any phase.
+- XP never written directly. All XP changes go through a single addXP(amount, eventType, description) function. It writes to xp_log first, then profile XP recalculates from the sum. The log is always the source of truth.
+- quest_log is append-only. Never update or delete rows. It's the permanent record.
+- Capacity is derived, not stored. capacity_slots_used = count of clients where status = 'active'. Always calculate live.
+- Streak runs on page load. Check if yesterday has a completed daily in quest_log. If not, reset streak. No cron needed yet.
+- Rank check runs after every XP event. If new total crosses threshold AND milestone conditions pass, trigger rank-up.
+Quest assignment is manual in MVP. You press "Generate Today's Quests." Auto-midnight assignment is deferred.
+
+PROJECT ARCHITECTURE RULES
+File Structure
+src/
+├── components/        # Reusable UI components only
+│   ├── ui/            # Primitives — Button, Card, Badge, Input etc.
+│   └── [feature]/     # Feature-specific components — QuestCard, ClientRow etc.
+├── pages/             # One file per route/page. Thin — layout + composition only.
+├── hooks/             # Custom hooks. One concern per file.
+├── services/          # All Supabase calls live here. Nothing else.
+├── utils/             # Pure functions. No side effects, no API calls.
+├── constants/         # XP values, rank thresholds, config. No magic numbers in code.
+├── types/             # TypeScript types/interfaces if you go TS, or JSDoc shapes
+└── context/           # Global state — auth, profile. Keep this small.
+
+The Rules
+1. No monolith files.
+A file does one thing. A component renders one concern. A hook manages one piece of state or one data flow. A service file handles one Supabase table or one domain. If you have to scroll more than a screen to understand what a file does, it's already too big.
+2. Max 150 lines per file — soft.
+The exception condition you described exactly. 120 lines that are coherent and tightly related = fine. 90 lines doing three unrelated things = split it now. The question isn't length, it's coherence. Ask: "does everything in this file serve the same single purpose?" If no, split.
+3. Pages are dumb.
+Pages do not contain logic, API calls, or complex state. They import components, arrange layout, and pass data down. If a page file is growing past 80 lines something is wrong — extract it.
+4. Components don't fetch.
+Components receive data via props or read from a hook. They do not call Supabase directly. Ever. All data fetching lives in hooks (using React Query) which call services. The chain is always: page/component → hook → service → Supabase.
+5. Services are just functions.
+A service file is a collection of plain async functions. No state, no hooks, no React. Just: take input, talk to Supabase, return data or throw. Example — clientService.js contains getClients(), addClient(), updateClientStatus(). Nothing else.
+6. Hooks own the data layer.
+Every React Query useQuery or useMutation lives in a custom hook. useClients(), useProfile(), useQuests(). The component calls the hook and gets back data + loading + error. Clean.
+7. No magic numbers.
+XP values, rank thresholds, quest limits, streak rules — all live in constants/. If you write: xp += 200 inside a function, reject it. It should be xp += XP_EVENTS.CLIENT_SIGNED orwhatever the variable name is. 
+8. One component per file.
+No exporting two components from the same file. The filename matches the component name exactly. QuestCard.jsx exports QuestCard. That's it.
+9. Prop drilling stops at 2 levels.
+If a prop is being passed through more than two components to get where it's needed, it goes into context or a shared hook instead. Don't let data tunnel through the tree.
+10. Mutations always invalidate.
+Every React Query mutation that changes data must invalidate the relevant query cache after success. If you add a client and the client list doesn't refresh, the cache invalidation is missing. Non-negotiable.
+11. Error and loading states are not optional.
+Every data-dependent component handles three states: loading, error, and success. No exceptions. Even if loading is just a skeleton and error is just a text fallback.
+12. No inline styles.
+Tailwind classes only. If a style can't be expressed in Tailwind, it goes in a CSS module file for that component only — not a global stylesheet.
+13. Supabase client is a singleton.
+One file — src/services/supabase.js — initialises and exports the Supabase client. Nothing else imports createClient. Everything imports from that one file.
+14. Business logic lives in utils.
+Streak calculation, XP total derivation, rank resolution from XP — these are pure functions in utils/. They take inputs, return outputs, touch nothing external. This makes them testable and reusable without pulling in any React.
+15. addXP is the only door.
+As defined in the build rules above — no direct writes to profile.xp anywhere. The addXP util/service function is the only entry point. You must never shortcut this.

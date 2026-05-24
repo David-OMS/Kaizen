@@ -1,0 +1,3 @@
+-- Achievement rows are seeded client-side from achievementCatalog on login.
+-- No schema change required; existing achievements table is used.
+-- Run app once while logged in to insert new hidden records for your user.

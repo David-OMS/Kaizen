@@ -1,0 +1,141 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { QUERY_KEYS } from '@/constants/queryKeys'
+import { QUEST_LOG_OUTCOME, QUEST_STATUS } from '@/constants/questLifecycle'
+import { submitQuestIncomplete } from '@/services/questIncompleteService'
+import {
+  generateQuestAssessment,
+  markLearningQuestDone,
+  submitQuestAssessment,
+} from '@/services/questAssessmentService'
+import {
+  appendQuestLogEntry,
+  getYesterdayDailyCompletionStatus,
+  hasCompletedDailyOnDate,
+  updateQuestRow,
+  updateQuestStatus,
+} from '@/services/questService'
+import { updateProfileStreak } from '@/services/profileService'
+import { updateTaskPoolOutcome } from '@/services/taskPoolService'
+import { TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
+import {
+  getQuestPenaltyXp,
+  grantQuestXp,
+  isLearningQuest,
+  resolveExecutionQuestXp,
+} from '@/services/questRewardService'
+import { QUEST_PERIODS } from '@/constants/questOptions'
+
+function invalidateQuests(queryClient) {
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyQuests })
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.weeklyQuests })
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.questLog })
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile })
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.taskPool })
+}
+
+async function bumpStreak(profile, period) {
+  if (period !== QUEST_PERIODS.DAILY) return
+  if (await hasCompletedDailyOnDate(new Date())) return
+  const hadYesterday = await getYesterdayDailyCompletionStatus()
+  const nextCurrent = hadYesterday ? Number(profile.streak_current || 0) + 1 : 1
+  await updateProfileStreak({
+    streakCurrent: nextCurrent,
+    streakBest: Math.max(Number(profile.streak_best || 0), nextCurrent),
+  })
+}
+
+export function useResolveQuest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ quest, status, profile }) => {
+      if (status === 'completed' && isLearningQuest(quest)) {
+        return markLearningQuestDone(quest)
+      }
+
+      const completedAt = status === 'completed' ? new Date().toISOString() : null
+      const nextStatus = status === 'completed' ? QUEST_STATUS.COMPLETED : QUEST_STATUS.FAILED
+      const row = await updateQuestStatus({
+        id: quest.id,
+        status: nextStatus,
+        completedAt,
+      })
+
+      const xpMeta = resolveExecutionQuestXp(quest)
+      const xpDelta =
+        status === 'completed' ? xpMeta.reward : -xpMeta.penalty || getQuestPenaltyXp(quest.period, 'failed')
+
+      if (status === 'completed') {
+        await appendQuestLogEntry({
+          questId: quest.id,
+          title: quest.title,
+          period: quest.period,
+          outcome: QUEST_LOG_OUTCOME.COMPLETED,
+          xpDelta,
+        })
+        await grantQuestXp({
+          amount: xpDelta,
+          period: quest.period,
+          description: `${quest.period} quest completed: ${quest.title}`,
+        })
+        await bumpStreak(profile, quest.period)
+        if (quest.task_pool_id) {
+          await updateTaskPoolOutcome(quest.task_pool_id, {
+            lastOutcome: TASK_POOL_OUTCOME.COMPLETED,
+            incrementDrop: false,
+          })
+        }
+      } else {
+        await appendQuestLogEntry({
+          questId: quest.id,
+          title: quest.title,
+          period: quest.period,
+          outcome: QUEST_LOG_OUTCOME.FAILED,
+          xpDelta,
+        })
+        await grantQuestXp({
+          amount: xpDelta,
+          period: quest.period,
+          description: `${quest.period} quest failed: ${quest.title}`,
+        })
+        if (quest.task_pool_id) {
+          await updateTaskPoolOutcome(quest.task_pool_id, {
+            lastOutcome: TASK_POOL_OUTCOME.FAILED,
+            incrementDrop: true,
+          })
+        }
+      }
+
+      return row
+    },
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+}
+
+export function useSubmitQuestIncomplete() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ quest, reason, profile }) => submitQuestIncomplete({ quest, reason, profile }),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+}
+
+export function useQuestAssessment() {
+  const queryClient = useQueryClient()
+  const gen = useMutation({
+    mutationFn: (quest) => generateQuestAssessment(quest),
+  })
+  const submit = useMutation({
+    mutationFn: ({ quest, answers, profile }) => submitQuestAssessment({ quest, answers, profile }),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+  return { gen, submit }
+}
+
+export function useStartQuest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (quest) =>
+      updateQuestRow(quest.id, { started_at: new Date().toISOString() }),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+}

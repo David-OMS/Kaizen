@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: 228 45% 6%;
+  --foreground: 40 100% 95%;
+  --card: 228 39% 10%;
+  --card-foreground: 40 100% 95%;
+  --popover: 228 39% 10%;
+  --popover-foreground: 40 100% 95%;
+  /* System palette: glowing cyan + purple only (no gold). */
+  --primary: 199 89% 72%;
+  --primary-foreground: 228 45% 6%;
+  --secondary: 271 91% 65%;
+  --secondary-foreground: 228 45% 6%;
+  --muted: 228 25% 16%;
+  --muted-foreground: 220 14% 70%;
+  --accent: 271 91% 65%;
+  --accent-foreground: 228 45% 6%;
+  --destructive: 0 80% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 227 25% 24%;
+  --input: 227 25% 24%;
+  --ring: 199 89% 72%;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  margin: 0;
+  min-height: 100svh;
+}
+
+/* Solo Levelling system UI — cyan glow + purple accents */
+.system-button {
+  @apply rounded-[2px] border border-[#1E2530] bg-[#0B0E12]/90 text-zinc-300 transition-all;
+}
+
+.system-button:hover {
+  @apply border-[#7DD3FC]/40 text-[#7DD3FC];
+}
+
+.system-button-active,
+.system-button.system-button-active {
+  @apply border-[#7DD3FC] text-[#7DD3FC] shadow-[0_0_15px_rgba(125,211,252,0.35)];
+}
+
+.system-glitch {
+  box-shadow:
+    0 0 0 1px rgba(168, 85, 247, 0.15),
+    0 0 24px rgba(125, 211, 252, 0.08);
+}
+
+.rank-badge {
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.12), rgba(168, 85, 247, 0.08));
+  box-shadow: 0 0 18px rgba(125, 211, 252, 0.25);
+}
+
+.level-pulse {
+  text-shadow: 0 0 12px rgba(125, 211, 252, 0.45);
+}
+
+.progress-energy {
+  background: linear-gradient(90deg, #6a1b9a 0%, #7dd3fc 55%, #a855f7 100%);
+  box-shadow: 0 0 12px rgba(125, 211, 252, 0.35);
+}
+
+.surprise-pending-shell {
+  animation: achievement-reveal-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes achievement-reveal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+    filter: brightness(1.2);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: brightness(1);
+  }
+}
+
+@keyframes achievement-title-glow {
+  0%,
+  100% {
+    text-shadow:
+      0 0 12px rgba(125, 211, 252, 0.45),
+      0 0 28px rgba(168, 85, 247, 0.2);
+  }
+  50% {
+    text-shadow:
+      0 0 18px rgba(125, 211, 252, 0.65),
+      0 0 36px rgba(168, 85, 247, 0.35);
+  }
+}
+
+.achievement-reveal-shell {
+  animation: achievement-reveal-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.achievement-reveal-title {
+  animation: achievement-title-glow 3s ease-in-out infinite;
+}

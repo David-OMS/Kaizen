@@ -1,0 +1,1 @@
+export const SYSTEM_AUTH_EMAIL_DOMAIN = 'oms.system.local'
