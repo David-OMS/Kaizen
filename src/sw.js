@@ -14,7 +14,7 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(payload.title, {
       body: payload.body,
       tag: payload.tag || 'kaizen',
-      icon: '/favicon.svg',
+      icon: '/icon-192.png',
       data: payload.data || {},
     }),
   )

@@ -38,7 +38,7 @@ export default defineConfig({
       filename: 'sw.js',
       devOptions: { enabled: true, type: 'module' },
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-1024.png'],
       manifest: {
         name: 'Kaizen',
         short_name: 'Kaizen',
@@ -49,9 +49,22 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
