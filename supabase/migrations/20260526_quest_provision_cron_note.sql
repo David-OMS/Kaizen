@@ -29,7 +29,7 @@ select cron.schedule(
     url := 'https://regfdfsyfjluanrsjftc.supabase.co/functions/v1/provision-daily-quests',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlZ2ZkZnN5ZmpsdWFucnNqZnRjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ5MTU0NCwiZXhwIjoyMDk0MDY3NTQ0fQ.XAhQx6pDyss_9m9GAvAnEGycTCKV9wg-Z0KGptwHXMk'
+      'Authorization', 'Bearer PASTE_SERVICE_ROLE_KEY'
     ),
     body := '{}'::jsonb
   ) as request_id;
