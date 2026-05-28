@@ -1,10 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/constants/queryKeys'
-import {
-  buildHabitProgress,
-  claimSapienHabit,
-  getSapienClaimsForDate,
-} from '@/services/sapienClaimService'
+import { buildHabitProgress, claimSapienHabit, getSapienClaimsForDate } from '@/services/sapienClaimService'
+import { getRecentSapienRewards } from '@/services/sapienMilestoneService'
 import {
   createSapienHabit,
   deactivateSapienHabit,
@@ -17,6 +14,13 @@ export function useSapienHabits() {
   return useQuery({
     queryKey: QUERY_KEYS.sapienHabits,
     queryFn: getSapienHabits,
+  })
+}
+
+export function useSapienRewards() {
+  return useQuery({
+    queryKey: QUERY_KEYS.sapienRewards,
+    queryFn: () => getRecentSapienRewards(12),
   })
 }
 
@@ -41,6 +45,7 @@ function invalidateSapien(queryClient) {
   const ymd = todayYmd()
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sapienHabits })
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sapienToday(ymd) })
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sapienRewards })
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.profile })
 }
 

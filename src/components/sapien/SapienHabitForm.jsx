@@ -3,7 +3,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SAPIEN_DEFAULT_XP_PER_CLAIM, SAPIEN_HABIT_KIND, WEEKDAY_LABELS } from '@/constants/sapienRanks'
+import { SapienIntegrationPicker } from '@/components/sapien/SapienIntegrationPicker'
+import { SAPIEN_HABIT_KIND, WEEKDAY_LABELS } from '@/constants/sapienRanks'
 import { useSapienMutations } from '@/hooks/useSapienHabits'
 import { cn } from '@/lib/utils'
 
@@ -13,7 +14,7 @@ export function SapienHabitForm({ onSaved }) {
   const { create } = useSapienMutations()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
-  const [xpPerClaim, setXpPerClaim] = useState(String(SAPIEN_DEFAULT_XP_PER_CLAIM))
+  const [integrationLevel, setIntegrationLevel] = useState(3)
   const [habitKind, setHabitKind] = useState(SAPIEN_HABIT_KIND.ONCE)
   const [targetCount, setTargetCount] = useState('5')
   const [days, setDays] = useState(ALL_DAYS)
@@ -26,12 +27,13 @@ export function SapienHabitForm({ onSaved }) {
     e.preventDefault()
     await create.mutateAsync({
       title: title.trim(),
-      xpPerClaim: Number(xpPerClaim) || SAPIEN_DEFAULT_XP_PER_CLAIM,
+      integrationLevel,
       habitKind,
       targetCount: habitKind === SAPIEN_HABIT_KIND.COUNT ? Number(targetCount) || 1 : 1,
       scheduleDays: days.length ? days : ALL_DAYS,
     })
     setTitle('')
+    setIntegrationLevel(3)
     setOpen(false)
     onSaved?.()
   }
@@ -58,28 +60,21 @@ export function SapienHabitForm({ onSaved }) {
         <Input value={title} onChange={(e) => setTitle(e.target.value)} required className="border-[#1E2530]" />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase tracking-wider text-zinc-400">XP per claim</Label>
-          <Input
-            type="number"
-            min={1}
-            value={xpPerClaim}
-            onChange={(e) => setXpPerClaim(e.target.value)}
-            className="border-[#1E2530]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase tracking-wider text-zinc-400">Type</Label>
-          <select
-            value={habitKind}
-            onChange={(e) => setHabitKind(e.target.value)}
-            className="h-10 w-full rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-sm"
-          >
-            <option value={SAPIEN_HABIT_KIND.ONCE}>Once daily</option>
-            <option value={SAPIEN_HABIT_KIND.COUNT}>Count (e.g. water)</option>
-          </select>
-        </div>
+      <div className="space-y-2">
+        <Label className="text-[10px] uppercase tracking-wider text-zinc-400">Level</Label>
+        <SapienIntegrationPicker value={integrationLevel} onChange={setIntegrationLevel} />
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-[10px] uppercase tracking-wider text-zinc-400">Type</Label>
+        <select
+          value={habitKind}
+          onChange={(e) => setHabitKind(e.target.value)}
+          className="h-10 w-full rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-sm"
+        >
+          <option value={SAPIEN_HABIT_KIND.ONCE}>Once daily</option>
+          <option value={SAPIEN_HABIT_KIND.COUNT}>Count (e.g. water)</option>
+        </select>
       </div>
 
       {habitKind === SAPIEN_HABIT_KIND.COUNT ? (

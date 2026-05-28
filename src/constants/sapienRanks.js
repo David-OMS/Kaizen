@@ -9,8 +9,6 @@ export const SAPIEN_RANKS = [
   { key: 'demigod', title: 'Demi-God', minXp: 1400 },
 ]
 
-export const SAPIEN_DEFAULT_XP_PER_CLAIM = 10
-
 export const SAPIEN_HABIT_KIND = {
   ONCE: 'once',
   COUNT: 'count',

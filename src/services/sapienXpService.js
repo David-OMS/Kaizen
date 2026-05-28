@@ -3,7 +3,7 @@ import { deriveSapienRankFromXp } from '@/utils/sapienRank'
 import { enqueueSurprise } from '@/utils/surpriseQueue'
 import { getAuthenticatedUserId, supabase } from '@/services/supabase'
 
-export async function addSapienXP(amount, eventType, description) {
+export async function addSapienXP(amount, eventType, description, options = {}) {
   const { data, error } = await supabase.rpc('add_sapien_xp', {
     p_amount: amount,
     p_event_type: eventType,
@@ -31,7 +31,7 @@ export async function addSapienXP(amount, eventType, description) {
         amount,
         eventType,
         description,
-        presentation: { title: 'Sapien gain', category: 'meta' },
+        presentation: options.presentation ?? { title: 'Sapien gain', category: 'meta' },
       }),
     )
   }

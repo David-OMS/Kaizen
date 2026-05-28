@@ -6,4 +6,5 @@ export const ACHIEVEMENT_CATEGORIES = {
   QUEST: 'quest',
   TREASURY: 'treasury',
   META: 'meta',
+  SAPIEN: 'sapien',
 }

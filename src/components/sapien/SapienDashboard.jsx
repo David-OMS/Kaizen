@@ -4,11 +4,13 @@ import { SapienHabitForm } from '@/components/sapien/SapienHabitForm'
 import { SapienHabitRow } from '@/components/sapien/SapienHabitRow'
 import { SapienProfileCard } from '@/components/sapien/SapienProfileCard'
 import { useProfile } from '@/hooks/useProfile'
-import { useSapienMutations, useSapienToday } from '@/hooks/useSapienHabits'
+import { SapienRewardsPanel } from '@/components/sapien/SapienRewardsPanel'
+import { useSapienMutations, useSapienRewards, useSapienToday } from '@/hooks/useSapienHabits'
 
 export function SapienDashboard() {
   const profileQuery = useProfile()
   const todayQuery = useSapienToday()
+  const rewardsQuery = useSapienRewards()
   const { claim } = useSapienMutations()
 
   if (profileQuery.isLoading || todayQuery.isLoading) {
@@ -59,6 +61,8 @@ export function SapienDashboard() {
           </div>
         )}
       </div>
+
+      <SapienRewardsPanel rewards={rewardsQuery.data} />
 
       <SapienHabitForm />
     </section>

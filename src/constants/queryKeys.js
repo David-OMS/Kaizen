@@ -20,4 +20,5 @@ export const QUERY_KEYS = {
   raidBattles: (clientId) => ['raid-battles', clientId],
   sapienHabits: ['sapien-habits'],
   sapienToday: (ymd) => ['sapien-today', ymd],
+  sapienRewards: ['sapien-rewards'],
 }

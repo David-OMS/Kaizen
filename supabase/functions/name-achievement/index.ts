@@ -19,7 +19,8 @@ The player just unlocked a milestone. Invent a fresh, cool DISPLAY TITLE and one
 Rules:
 - Title: 2-6 words, title case, fantasy-system vibe (like Solo Leveling notifications).
 - Tagline: max 160 chars, second-person or ominous System voice, relevant to the trigger.
-- MUST match the trigger meaning and CATEGORY (hunt vs raid vs spoil vs profile are different domains).
+- MUST match the trigger meaning and CATEGORY (hunt vs raid vs spoil vs profile vs sapien are different domains).
+- Category "sapien": personal habit streaks, inner discipline, identity — NOT client raids or daily quests.
 - NEVER use "First Blood" unless category is raid and trigger is literally first client signed.
 - NEVER reuse generic raid combat names for hunt/outreach milestones.
 - Be creative; this unlock id is unique: ${body.variationSeed}
