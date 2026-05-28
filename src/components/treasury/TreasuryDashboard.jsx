@@ -29,6 +29,7 @@ export function TreasuryDashboard() {
       outstanding: ledgerQuery.data.outstanding,
       expenses: ledgerQuery.data.expenses,
       revenueTargetMonthly: profileQuery.data?.revenue_target_monthly ?? 0,
+      collectionReceivedLifetime: ledgerQuery.data.collectionReceivedLifetime,
     })
   }, [ledgerQuery.data, profileQuery.data?.revenue_target_monthly])
 

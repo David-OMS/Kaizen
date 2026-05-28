@@ -4,6 +4,7 @@ import { SystemScanlines } from '@/components/layout/SystemScanlines'
 import { useAuthSession } from '@/hooks/useAuthSession'
 import { FieldPage } from '@/pages/FieldPage'
 import { HunterProfilePage } from '@/pages/HunterProfilePage'
+import { SapienPage } from '@/pages/SapienPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { QuestsPage } from '@/pages/QuestsPage'
 import { TreasuryPage } from '@/pages/TreasuryPage'
@@ -28,6 +29,7 @@ export function AppRouter() {
         >
           <Route path="/" element={<Navigate to="/profile" replace />} />
           <Route path="/profile" element={<HunterProfilePage />} />
+          <Route path="/sapien" element={<SapienPage />} />
           <Route path="/field/*" element={<FieldPage />} />
           <Route path="/treasury" element={<TreasuryPage />} />
           <Route path="/quests" element={<QuestsPage />} />

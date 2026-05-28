@@ -1,4 +1,3 @@
-import { format, startOfWeek } from 'date-fns'
 import { QUEST_PERIODS } from '@/constants/questOptions'
 import { getProfile } from '@/services/profileService'
 import { getSkills } from '@/services/skillsService'
@@ -9,15 +8,16 @@ import {
 } from '@/services/questService'
 import { closeQuestDay } from '@/services/questCloseDayService'
 import { buildDailyCarryovers, buildPoolCandidatesForDaily } from '@/services/questCarryoverService'
-import { assignDailyQuests, assignWeeklyQuests } from '@/services/questAssignmentService'
-import { getTaskPool } from '@/services/taskPoolService'
+import { assignDailyQuests } from '@/services/questAssignmentService'
+import { buildWeeklyScheduledCandidates } from '@/services/questWeeklySchedulingService'
+import { applyAutoWeeklyFocus } from '@/services/weeklyFocusAutoService'
+import { provisionRecallQuestsForToday } from '@/services/questRecallService'
 import {
   computeBehaviorAdjustment,
   computeBreezeBonus,
   computeDailyBudgetPoints,
-  computeWeeklyBudgetPoints,
 } from '@/utils/questBudget'
-import { getRecentQuestLogs, completionRateFromLogs } from '@/services/questMetricsService'
+import { getRecentQuestLogs } from '@/services/questMetricsService'
 import {
   getTodayYmdInTimezone,
   getYesterdayYmdInTimezone,
@@ -63,9 +63,12 @@ export async function runDailyProvision({ force = false } = {}) {
 
   await closeQuestDay({ assignedDate: yesterday, profile, recentLogs })
 
+  await applyAutoWeeklyFocus(profile)
+
   const carryovers = await buildDailyCarryovers(yesterday)
   const usedPoolIds = new Set(carryovers.map((c) => c.taskPoolId).filter(Boolean))
   const poolCandidates = await buildPoolCandidatesForDaily(['daily_eligible', 'both'], usedPoolIds)
+  const weeklyCandidates = await buildWeeklyScheduledCandidates({ timezone: tz })
 
   const skills = await getSkills()
   const dailyCreated = await assignDailyQuests({
@@ -73,26 +76,14 @@ export async function runDailyProvision({ force = false } = {}) {
     skills,
     carryovers,
     poolCandidates,
+    weeklyCandidates,
     totalBudget: dailyBudget,
     todayYmd: today,
   })
+  const weeklyPoolIds = new Set(weeklyCandidates.map((c) => c.taskPoolId).filter(Boolean))
+  const weeklyCreatedCount = dailyCreated.filter((q) => weeklyPoolIds.has(q.task_pool_id)).length
 
-  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  const weekExisting = await getQuestsForAssignedDate(weekStart, QUEST_PERIODS.WEEKLY)
-  let weeklyCreated = []
-
-  if (!weekExisting.length) {
-    const weeklyBudget = computeWeeklyBudgetPoints({
-      bandwidth: profile.quest_bandwidth || 'normal',
-      behaviorAdj,
-    })
-    const pool = await getTaskPool()
-    weeklyCreated = await assignWeeklyQuests({
-      pool,
-      totalBudget: weeklyBudget,
-      weekStartYmd: weekStart,
-    })
-  }
+  const recallCreated = await provisionRecallQuestsForToday(today)
 
   await markDailyProvisionComplete()
 
@@ -100,7 +91,8 @@ export async function runDailyProvision({ force = false } = {}) {
     skipped: false,
     today,
     dailyCount: dailyCreated.length,
-    weeklyCount: weeklyCreated.length,
+    weeklyCount: weeklyCreatedCount,
+    recallCount: recallCreated.length,
     budget: dailyBudget,
   }
 }

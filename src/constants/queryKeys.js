@@ -10,6 +10,7 @@ export const QUERY_KEYS = {
   treasuryIncome: ['treasury-income'],
   treasuryExpenses: ['treasury-expenses'],
   treasuryLedger: ['treasury-ledger'],
+  raidCollection: (clientId) => ['raid-collection', clientId],
   taskPool: ['task-pool'],
   dailyQuests: ['daily-quests'],
   weeklyQuests: ['weekly-quests'],
@@ -17,4 +18,6 @@ export const QUERY_KEYS = {
   rankGateAudit: ['rank-gate-audit'],
   raidSpoils: (clientId) => ['raid-spoils', clientId],
   raidBattles: (clientId) => ['raid-battles', clientId],
+  sapienHabits: ['sapien-habits'],
+  sapienToday: (ymd) => ['sapien-today', ymd],
 }

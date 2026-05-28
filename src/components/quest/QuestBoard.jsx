@@ -9,9 +9,16 @@ import { QuestCard } from '@/components/quest/QuestCard'
 export function QuestBoard({
   period,
   onResolveQuest,
+  onBattleIntel,
   onIncomplete,
+  onAttemptFail,
+  isBattleIntelPending,
+  battleIntelError,
   isResolving,
   isIncompletePending,
+  isAttemptFailPending,
+  incompleteError,
+  attemptFailError,
 }) {
   const profileQuery = useProfile()
   const questsQuery = period === QUEST_PERIODS.DAILY ? useDailyQuests() : useWeeklyQuests()
@@ -33,13 +40,17 @@ export function QuestBoard({
     )
   }
 
-  const quests = (questsQuery.data ?? []).filter((q) =>
-    [
-      QUEST_STATUS.ACTIVE,
-      QUEST_STATUS.EXTENDED,
-      QUEST_STATUS.ASSESSMENT_PENDING,
-    ].includes(q.status),
-  )
+  const allowedStatuses =
+    period === QUEST_PERIODS.WEEKLY
+      ? [
+          QUEST_STATUS.ACTIVE,
+          QUEST_STATUS.EXTENDED,
+          QUEST_STATUS.ASSESSMENT_PENDING,
+          QUEST_STATUS.COMPLETED,
+        ]
+      : [QUEST_STATUS.ACTIVE, QUEST_STATUS.EXTENDED, QUEST_STATUS.ASSESSMENT_PENDING]
+
+  const quests = (questsQuery.data ?? []).filter((q) => allowedStatuses.includes(q.status))
 
   return (
     <section className="space-y-4">
@@ -55,8 +66,14 @@ export function QuestBoard({
               isResolving={isResolving}
               isIncompletePending={isIncompletePending}
               onComplete={() => onResolveQuest(quest, 'completed')}
-              onFail={() => onResolveQuest(quest, 'failed')}
+              onBattleIntel={(intel) => onBattleIntel?.(quest, intel)}
+              onAttemptFail={(reason) => onAttemptFail?.(quest, reason)}
               onIncomplete={(reason) => onIncomplete?.(quest, reason)}
+              isAttemptFailPending={isAttemptFailPending}
+              isBattleIntelPending={isBattleIntelPending}
+              attemptFailError={attemptFailError}
+              battleIntelError={battleIntelError}
+              incompleteError={incompleteError}
             />
           ))}
         </div>

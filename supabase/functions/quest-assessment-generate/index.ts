@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   if (!user) return json({ error: error ?? 'Unauthorized' }, 401)
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  let body: { title?: string; context?: string }
+  let body: { title?: string; context?: string; battleIntel?: string }
   try {
     body = await req.json()
   } catch {
@@ -35,12 +35,14 @@ Deno.serve(async (req) => {
   }
 
   const title = String(body.title ?? 'Learning quest').trim()
+  const intel = String(body.battleIntel ?? body.context ?? '').trim()
   const key = Deno.env.get('OPENAI_API_KEY')
   if (!key) return json(fallback(title))
 
-  const prompt = `Create 3 short assessment questions for a learning daily quest.
+  const prompt = `Create 3 short assessment questions ONLY from the learner's Battle Intel below.
+Do not invent topics not mentioned in Battle Intel.
 Title: ${JSON.stringify(title)}
-Context: ${JSON.stringify(body.context ?? '')}
+Battle Intel: ${JSON.stringify(intel)}
 Return JSON: { "questions": [ { "id": "q1", "prompt": string } ] } max 4 questions, prompts under 300 chars.`
 
   try {

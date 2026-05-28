@@ -70,6 +70,7 @@ export async function closeQuestDay({ assignedDate, profile, recentLogs }) {
     })
 
     if (quest.task_pool_id) {
+      if (quest.analysis_snapshot?.weekly_session) continue
       const mandatory = poolById[quest.task_pool_id]?.mandatory ?? false
       await updateTaskPoolOutcome(quest.task_pool_id, {
         lastOutcome: mandatory ? TASK_POOL_OUTCOME.DROPPED : TASK_POOL_OUTCOME.EXPIRED,

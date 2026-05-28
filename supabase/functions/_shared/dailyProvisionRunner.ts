@@ -1,4 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import { mergeHunterProfileContext } from './hunterProfile.ts'
 
 const TZ_DEFAULT = 'Africa/Lagos'
 const OPEN = ['active', 'extended', 'incomplete', 'assessment_pending']
@@ -247,7 +248,7 @@ export async function runDailyProvisionForUser(
 
   const usedCarry = sumLoad(carryovers as { loadPoints: number }[])
   const ai = await fetchAiSuggestions(opts.supabaseUrl, opts.serviceKey, {
-    hunterVision: profile.hunter_vision || profile.hunter_goals || '',
+    hunterVision: mergeHunterProfileContext(profile),
     skills: [],
     pool: (poolRows ?? []).map((t) => ({ id: t.id, title: t.title, mandatory: t.mandatory, priority: t.priority })),
     carryovers: carryovers.map((c) => ({ title: c.title, loadPoints: c.loadPoints })),

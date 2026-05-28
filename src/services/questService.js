@@ -28,6 +28,11 @@ function mapQuestPayload(userId, entry) {
     extension_count: entry.extensionCount ?? 0,
     assessment_status: entry.assessmentStatus ?? 'none',
     analysis_snapshot: entry.analysisSnapshot ?? null,
+    battle_intel: entry.battleIntel ?? null,
+    battle_intel_at: entry.battleIntelAt ?? null,
+    is_micro: entry.isMicro ?? false,
+    recall_source_quest_id: entry.recallSourceQuestId ?? null,
+    recall_kind: entry.recallKind ?? null,
   }
 }
 
@@ -54,6 +59,14 @@ function getCurrentWindow(period) {
   }
 }
 
+export function getCurrentWeekBounds() {
+  const now = new Date()
+  return {
+    start: format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    end: format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+  }
+}
+
 export async function getCurrentPeriodQuests(period) {
   const window = getCurrentWindow(period)
   const { data, error } = await supabase
@@ -65,6 +78,53 @@ export async function getCurrentPeriodQuests(period) {
     .order('assigned_date', { ascending: false })
     .order('created_at', { ascending: false })
 
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getCurrentWeekDailyQuests() {
+  const window = getCurrentWeekBounds()
+  const { data, error } = await supabase
+    .from('quests')
+    .select('*')
+    .eq('period', QUEST_PERIODS.DAILY)
+    .gte('assigned_date', window.start)
+    .lte('assigned_date', window.end)
+    .order('assigned_date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getDailyQuestsInWeekForTaskPoolIds(taskPoolIds) {
+  const ids = [...new Set((taskPoolIds ?? []).filter(Boolean))]
+  if (!ids.length) return []
+  const { start, end } = getCurrentWeekBounds()
+  const { data, error } = await supabase
+    .from('quests')
+    .select('*')
+    .eq('period', QUEST_PERIODS.DAILY)
+    .in('task_pool_id', ids)
+    .gte('assigned_date', start)
+    .lte('assigned_date', end)
+    .order('assigned_date', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getRecallQuestsForToday(assignedDate) {
+  const { data, error } = await supabase
+    .from('quests')
+    .select('*')
+    .eq('period', QUEST_PERIODS.DAILY)
+    .eq('assigned_date', assignedDate)
+    .eq('is_micro', true)
+    .in('status', [
+      QUEST_STATUS.ACTIVE,
+      QUEST_STATUS.EXTENDED,
+      QUEST_STATUS.ASSESSMENT_PENDING,
+    ])
   if (error) throw error
   return data ?? []
 }

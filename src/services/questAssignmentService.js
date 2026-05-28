@@ -11,11 +11,12 @@ import { loadPointsForQuest } from '@/utils/questBudget'
 import { getQuestDueDate } from '@/utils/quest'
 import { resolveExecutionQuestXp } from '@/services/questRewardService'
 import { getQuestRewards } from '@/utils/quest'
+import { mergeHunterProfileContext } from '@/utils/hunterProfile'
 
 async function buildAiSuggestions({ profile, skills, pool, carryovers, remainingBudget, todayYmd }) {
   try {
     const suggestions = await invokeAssignDailyQuests({
-      hunterVision: profile.hunter_vision || profile.hunter_goals || '',
+      hunterVision: mergeHunterProfileContext(profile),
       skills: (skills ?? []).map((s) => ({ name: s.name, level: s.level, type: s.skill_type })),
       pool: pool.map((t) => ({
         id: t.id,
@@ -72,6 +73,14 @@ function entryFromPacked(item, assignedDate, period) {
     questKind: item.questKind || QUEST_KIND.EXECUTION,
     loadPoints: item.loadPoints,
     carryover: item.carryover ?? false,
+    analysisSnapshot: item.schedulingMeta
+      ? {
+          weekly_session: true,
+          weekly_target_days: item.schedulingMeta.weeklyTargetDays,
+          weekly_distribution_mode: item.schedulingMeta.weeklyDistributionMode,
+          weekly_week_end: item.schedulingMeta.weekEnd,
+        }
+      : undefined,
     accepted: true,
   }
 }
@@ -81,6 +90,7 @@ export async function assignDailyQuests({
   skills,
   carryovers,
   poolCandidates,
+  weeklyCandidates = [],
   totalBudget,
   todayYmd,
 }) {
@@ -98,7 +108,7 @@ export async function assignDailyQuests({
 
   const packed = packQuestCandidates({
     carryovers,
-    poolTasks: poolCandidates,
+    poolTasks: [...(poolCandidates ?? []), ...(weeklyCandidates ?? [])],
     aiSuggestions,
     totalBudget,
   })

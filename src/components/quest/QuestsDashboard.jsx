@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react'
 import { QuestBoard } from '@/components/quest/QuestBoard'
+import { RecallGate } from '@/components/quest/RecallGate'
 import { QuestLogList } from '@/components/quest/QuestLogList'
 import { QuestSectionTabs } from '@/components/quest/QuestSectionTabs'
 import { TaskPoolSection } from '@/components/quest/TaskPoolSection'
 import { useClients } from '@/hooks/useClients'
-import { useResolveQuest, useSubmitQuestIncomplete } from '@/hooks/useQuestLifecycleMutations'
+import {
+  useResolveQuest,
+  useSubmitBattleIntel,
+  useSubmitQuestAttemptFail,
+  useSubmitQuestIncomplete,
+} from '@/hooks/useQuestLifecycleMutations'
 import { useSyncStreakOnLoad } from '@/hooks/useQuestMutations'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -15,6 +21,8 @@ export function QuestsDashboard() {
   const raidsQuery = useClients()
   const resolveQuest = useResolveQuest()
   const incomplete = useSubmitQuestIncomplete()
+  const attemptFail = useSubmitQuestAttemptFail()
+  const battleIntel = useSubmitBattleIntel()
   const syncStreak = useSyncStreakOnLoad()
 
   useEffect(() => {
@@ -37,15 +45,44 @@ export function QuestsDashboard() {
 
       {activeSection === 'task_pool' ? <TaskPoolSection raids={raidsQuery.data ?? []} /> : null}
       {activeSection === 'daily' ? (
-        <QuestBoard
-          period="daily"
-          onResolveQuest={handleResolveQuest}
-          onIncomplete={(quest, reason) =>
-            incomplete.mutateAsync({ quest, reason, profile: profileQuery.data })
-          }
-          isResolving={resolveQuest.isPending}
-          isIncompletePending={incomplete.isPending}
-        />
+        <>
+          <RecallGate
+            profile={profileQuery.data}
+            onResolveQuest={handleResolveQuest}
+            onBattleIntel={(quest, intel) => battleIntel.mutateAsync({ quest, intel })}
+            onIncomplete={(quest, reason) =>
+              incomplete.mutateAsync({ quest, reason, profile: profileQuery.data })
+            }
+            onAttemptFail={(quest, reason) =>
+              attemptFail.mutateAsync({ quest, reason, profile: profileQuery.data })
+            }
+            isResolving={resolveQuest.isPending}
+            isIncompletePending={incomplete.isPending}
+            isAttemptFailPending={attemptFail.isPending}
+            isBattleIntelPending={battleIntel.isPending}
+            incompleteError={incomplete.error?.message}
+            attemptFailError={attemptFail.error?.message}
+            battleIntelError={battleIntel.error?.message}
+          />
+          <QuestBoard
+            period="daily"
+            onResolveQuest={handleResolveQuest}
+            onBattleIntel={(quest, intel) => battleIntel.mutateAsync({ quest, intel })}
+            onIncomplete={(quest, reason) =>
+              incomplete.mutateAsync({ quest, reason, profile: profileQuery.data })
+            }
+            onAttemptFail={(quest, reason) =>
+              attemptFail.mutateAsync({ quest, reason, profile: profileQuery.data })
+            }
+            isResolving={resolveQuest.isPending}
+            isIncompletePending={incomplete.isPending}
+            isAttemptFailPending={attemptFail.isPending}
+            isBattleIntelPending={battleIntel.isPending}
+            incompleteError={incomplete.error?.message}
+            attemptFailError={attemptFail.error?.message}
+            battleIntelError={battleIntel.error?.message}
+          />
+        </>
       ) : null}
       {activeSection === 'weekly' ? (
         <QuestBoard
@@ -54,8 +91,14 @@ export function QuestsDashboard() {
           onIncomplete={(quest, reason) =>
             incomplete.mutateAsync({ quest, reason, profile: profileQuery.data })
           }
+          onAttemptFail={(quest, reason) =>
+            attemptFail.mutateAsync({ quest, reason, profile: profileQuery.data })
+          }
           isResolving={resolveQuest.isPending}
           isIncompletePending={incomplete.isPending}
+          isAttemptFailPending={attemptFail.isPending}
+          incompleteError={incomplete.error?.message}
+          attemptFailError={attemptFail.error?.message}
         />
       ) : null}
       {activeSection === 'log' ? <QuestLogList /> : null}

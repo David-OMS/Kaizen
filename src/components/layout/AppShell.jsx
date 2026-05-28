@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { Zap } from 'lucide-react'
+import { ModeToggle } from '@/components/layout/ModeToggle'
 import { Button } from '@/components/ui/button'
 import { DesktopSidebar } from '@/components/layout/DesktopSidebar'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
@@ -24,6 +25,7 @@ export function AppShell() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <ModeToggle />
             <p className="hidden text-xs text-zinc-400 md:block">@{username}</p>
             <Button
               type="button"

@@ -217,9 +217,17 @@ async function countTreasuryInflowEvents() {
   return spoils + claims
 }
 
+async function sumCollectionEntryAmountsNgn() {
+  return sumOrZero(() => supabase.from('treasury_collection_entries').select('amount'))
+}
+
 async function sumTreasuryReceivedLifetimeNgn() {
-  const [spoils, tributes] = await Promise.all([sumSpoilAmountsNgn(), sumClaimedAccrualAmountsNgn()])
-  return spoils + tributes
+  const [spoils, tributes, collections] = await Promise.all([
+    sumSpoilAmountsNgn(),
+    sumClaimedAccrualAmountsNgn(),
+    sumCollectionEntryAmountsNgn(),
+  ])
+  return spoils + tributes + collections
 }
 
 async function sumTreasuryReceivedThisMonthNgn() {

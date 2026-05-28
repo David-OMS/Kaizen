@@ -36,13 +36,18 @@ export function TaskPoolList() {
                 {task.title}
               </CardTitle>
               <span className="rounded-sm border border-[#1E2530] px-2 py-1 text-[10px] text-zinc-200 uppercase">
-                {task.type}
+                {task.quest_kind || 'task'}
               </span>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 px-4 text-sm text-zinc-300">
             <p>Context: {task.context_note || '-'}</p>
             <p>Assignments: {task.times_assigned ?? 0}</p>
+            {task.type === 'weekly_eligible' && task.repeat_policy === 'always' ? (
+              <p>
+                Focus: <span className="font-mono">{task.focus_active === false ? 'Parked' : 'Active'}</span>
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       ))}

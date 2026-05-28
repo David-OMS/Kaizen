@@ -1,5 +1,6 @@
 import { getAuthenticatedUserId, supabase } from '@/services/supabase'
 import { RAID_BATTLE_STATUS } from '@/constants/raidBattleStatuses'
+import { sumCollectionEntriesNgn } from '@/services/raidCollectionService'
 import {
   buildOutstandingEntries,
   buildReceivedLedger,
@@ -8,7 +9,14 @@ import {
 export async function fetchTreasuryLedger() {
   const userId = await getAuthenticatedUserId()
 
-  const [spoilsRes, accrualsRes, battlesRes, clientsRes, expensesRes] = await Promise.all([
+  const [
+    spoilsRes,
+    accrualsRes,
+    battlesRes,
+    clientsRes,
+    expensesRes,
+    collectionTotal,
+  ] = await Promise.all([
     supabase
       .from('raid_spoils')
       .select('*')
@@ -40,6 +48,7 @@ export async function fetchTreasuryLedger() {
       .select('*')
       .eq('user_id', userId)
       .order('date', { ascending: false }),
+    sumCollectionEntriesNgn().catch(() => 0),
   ])
 
   if (spoilsRes.error) throw spoilsRes.error
@@ -47,6 +56,8 @@ export async function fetchTreasuryLedger() {
   if (battlesRes.error) throw battlesRes.error
   if (clientsRes.error) throw clientsRes.error
   if (expensesRes.error) throw expensesRes.error
+  if (activePeriodRes.error) throw activePeriodRes.error
+  if (collectionEntriesRes.error) throw collectionEntriesRes.error
 
   const clients = clientsRes.data ?? []
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c.name]))
@@ -61,5 +72,6 @@ export async function fetchTreasuryLedger() {
     outstanding,
     expenses: expensesRes.data ?? [],
     clients,
+    collectionReceivedLifetime: Number(collectionTotal) || 0,
   }
 }

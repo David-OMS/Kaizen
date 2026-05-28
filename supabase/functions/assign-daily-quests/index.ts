@@ -31,9 +31,9 @@ Deno.serve(async (req) => {
   if (!key || remaining < 1) return json({ suggestions: [] })
 
   const prompt = `You assign daily solo-operator quests. Return JSON: { "suggestions": [ { "title": string, "difficulty": "easy"|"medium"|"hard"|"legendary", "questKind": "execution"|"learning", "category": string, "loadPoints": number, "taskPoolId": string|null, "context": string } ] }
-Rules: total loadPoints MUST NOT exceed ${remaining}. Prefer ~1-3 tasks. Use hunter vision, skills, pool. Only invent tasks that fit remaining budget. Pool items optional.
+Rules: total loadPoints MUST NOT exceed ${remaining}. Prefer ~1-3 tasks. Align with hunter profile (vision + current goals), skills, and pool. Only invent tasks that fit remaining budget. Pool items optional.
 
-Hunter: ${JSON.stringify(body.hunterVision ?? '')}
+Hunter profile: ${JSON.stringify(body.hunterVision ?? '')}
 Skills: ${JSON.stringify(body.skills ?? [])}
 Pool: ${JSON.stringify(body.pool ?? [])}
 Carryovers already assigned: ${JSON.stringify(body.carryovers ?? [])}`

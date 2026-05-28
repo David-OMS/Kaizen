@@ -66,6 +66,7 @@ export async function buildPoolCandidatesForDaily(eligibleTypes, excludePoolIds 
   for (const task of pool) {
     if (!eligibleTypes.includes(task.type)) continue
     if (excludePoolIds.has(task.id)) continue
+    if (task.repeat_policy === 'until_completed' && task.last_outcome === 'completed') continue
     const meta = await classifyPoolTask(task)
     candidates.push({
       id: task.id,

@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/constants/queryKeys'
 import { QUEST_LOG_OUTCOME, QUEST_STATUS } from '@/constants/questLifecycle'
+import { submitQuestAttemptFail } from '@/services/questAttemptFailService'
 import { submitQuestIncomplete } from '@/services/questIncompleteService'
 import {
   generateQuestAssessment,
-  markLearningQuestDone,
+  submitBattleIntel,
   submitQuestAssessment,
 } from '@/services/questAssessmentService'
 import {
@@ -17,6 +18,7 @@ import {
 import { updateProfileStreak } from '@/services/profileService'
 import { updateTaskPoolOutcome } from '@/services/taskPoolService'
 import { TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
+import { hasMetWeeklyTargetThisWeek } from '@/services/questWeeklySchedulingService'
 import {
   getQuestPenaltyXp,
   grantQuestXp,
@@ -44,12 +46,20 @@ async function bumpStreak(profile, period) {
   })
 }
 
+export function useSubmitBattleIntel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ quest, battleIntel }) => submitBattleIntel(quest, battleIntel),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+}
+
 export function useResolveQuest() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ quest, status, profile }) => {
       if (status === 'completed' && isLearningQuest(quest)) {
-        return markLearningQuestDone(quest)
+        throw new Error('LEARNING_NEEDS_BATTLE_INTEL')
       }
 
       const completedAt = status === 'completed' ? new Date().toISOString() : null
@@ -79,10 +89,13 @@ export function useResolveQuest() {
         })
         await bumpStreak(profile, quest.period)
         if (quest.task_pool_id) {
-          await updateTaskPoolOutcome(quest.task_pool_id, {
-            lastOutcome: TASK_POOL_OUTCOME.COMPLETED,
-            incrementDrop: false,
-          })
+          const isWeeklySession = Boolean(quest.analysis_snapshot?.weekly_session)
+          if (!isWeeklySession || (await hasMetWeeklyTargetThisWeek(quest.task_pool_id))) {
+            await updateTaskPoolOutcome(quest.task_pool_id, {
+              lastOutcome: TASK_POOL_OUTCOME.COMPLETED,
+              incrementDrop: false,
+            })
+          }
         }
       } else {
         await appendQuestLogEntry({
@@ -98,10 +111,13 @@ export function useResolveQuest() {
           description: `${quest.period} quest failed: ${quest.title}`,
         })
         if (quest.task_pool_id) {
-          await updateTaskPoolOutcome(quest.task_pool_id, {
-            lastOutcome: TASK_POOL_OUTCOME.FAILED,
-            incrementDrop: true,
-          })
+          const isWeeklySession = Boolean(quest.analysis_snapshot?.weekly_session)
+          if (!isWeeklySession) {
+            await updateTaskPoolOutcome(quest.task_pool_id, {
+              lastOutcome: TASK_POOL_OUTCOME.FAILED,
+              incrementDrop: true,
+            })
+          }
         }
       }
 
@@ -115,6 +131,14 @@ export function useSubmitQuestIncomplete() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ quest, reason, profile }) => submitQuestIncomplete({ quest, reason, profile }),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+}
+
+export function useSubmitQuestAttemptFail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ quest, reason, profile }) => submitQuestAttemptFail({ quest, reason, profile }),
     onSuccess: () => invalidateQuests(queryClient),
   })
 }

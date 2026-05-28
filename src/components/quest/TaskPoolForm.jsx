@@ -3,17 +3,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TASK_POOL_TYPE_OPTIONS } from '@/constants/questOptions'
+import { QUEST_KIND } from '@/constants/questLifecycle'
 import { useCreateTaskPoolEntry } from '@/hooks/useTaskPoolMutations'
 
 const defaultForm = {
   title: '',
   contextNote: '',
-  type: 'both',
-  linkedClientId: '',
+  questKind: QUEST_KIND.LEARNING,
   mandatory: false,
-  priority: 'normal',
-  questKind: '',
+  linkedClientId: '',
 }
 
 export function TaskPoolForm({ raidOptions, onSaved }) {
@@ -42,7 +40,7 @@ export function TaskPoolForm({ raidOptions, onSaved }) {
 
       <div className="space-y-2">
         <Label htmlFor="task-title" className="tracking-[0.1em] text-[#7DD3FC] uppercase">
-          Task Title
+          Title
         </Label>
         <Input
           id="task-title"
@@ -55,45 +53,59 @@ export function TaskPoolForm({ raidOptions, onSaved }) {
 
       <div className="space-y-2">
         <Label htmlFor="task-context" className="tracking-[0.1em] text-[#7DD3FC] uppercase">
-          Context Note
+          Context
         </Label>
         <textarea
           id="task-context"
           rows={3}
           value={form.contextNote}
           onChange={(event) => handleChange('contextNote', event.target.value)}
+          placeholder="Why this matters, goals, constraints…"
           className="w-full rounded-[2px] border border-[#1E2530] bg-transparent px-2 py-2 text-sm"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="task-type" className="tracking-[0.1em] text-[#7DD3FC] uppercase">
-            Type
-          </Label>
-          <select
-            id="task-type"
-            value={form.type}
-            onChange={(event) => handleChange('type', event.target.value)}
-            className="h-10 w-full rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-sm"
+      <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+        <div className="flex rounded-sm border border-[#1E2530] p-0.5">
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-[10px] uppercase tracking-wide ${
+              form.questKind === QUEST_KIND.LEARNING ? 'bg-[#7DD3FC]/20 text-[#7DD3FC]' : 'text-zinc-500'
+            }`}
+            onClick={() => handleChange('questKind', QUEST_KIND.LEARNING)}
           >
-            {TASK_POOL_TYPE_OPTIONS.map((type) => (
-              <option key={type} value={type} className="bg-[#12161D]">
-                {type}
-              </option>
-            ))}
-          </select>
+            Learning
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-[10px] uppercase tracking-wide ${
+              form.questKind === QUEST_KIND.EXECUTION ? 'bg-[#7DD3FC]/20 text-[#7DD3FC]' : 'text-zinc-500'
+            }`}
+            onClick={() => handleChange('questKind', QUEST_KIND.EXECUTION)}
+          >
+            Execution
+          </button>
         </div>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.mandatory}
+            onChange={(e) => handleChange('mandatory', e.target.checked)}
+          />
+          <span className="text-[10px] uppercase tracking-wide">Must not skip</span>
+        </label>
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="task-raid-link" className="tracking-[0.1em] text-[#7DD3FC] uppercase">
-            Linked Raid
+      {form.questKind === QUEST_KIND.EXECUTION && raidOptions?.length ? (
+        <div className="space-y-1">
+          <Label htmlFor="task-raid-link" className="text-[10px] uppercase text-zinc-400">
+            Linked raid (optional)
           </Label>
           <select
             id="task-raid-link"
             value={form.linkedClientId}
             onChange={(event) => handleChange('linkedClientId', event.target.value)}
-            className="h-10 w-full rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-sm"
+            className="h-9 w-full rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-sm"
           >
             <option value="" className="bg-[#12161D]">
               None
@@ -105,38 +117,10 @@ export function TaskPoolForm({ raidOptions, onSaved }) {
             ))}
           </select>
         </div>
-      </div>
-
-      <div className="flex items-center gap-4 text-sm text-zinc-300">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={form.mandatory}
-            onChange={(e) => handleChange('mandatory', e.target.checked)}
-          />
-          <span className="text-[10px] uppercase tracking-wide">Mandatory</span>
-        </label>
-        <select
-          value={form.priority}
-          onChange={(e) => handleChange('priority', e.target.value)}
-          className="h-8 rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-[10px]"
-        >
-          <option value="normal">Normal</option>
-          <option value="high">High priority</option>
-        </select>
-        <select
-          value={form.questKind}
-          onChange={(e) => handleChange('questKind', e.target.value)}
-          className="h-8 rounded-[2px] border border-[#1E2530] bg-transparent px-2 text-[10px]"
-        >
-          <option value="">Auto kind</option>
-          <option value="execution">Execution</option>
-          <option value="learning">Learning</option>
-        </select>
-      </div>
+      ) : null}
 
       <Button type="submit" className="system-button w-full text-[10px]" disabled={createTask.isPending}>
-        {createTask.isPending ? 'ADDING...' : 'ADD TO TASK POOL'}
+        {createTask.isPending ? 'Adding…' : 'Add to pool'}
       </Button>
     </form>
   )

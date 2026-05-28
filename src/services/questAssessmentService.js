@@ -6,6 +6,9 @@ import { grantQuestXp } from '@/services/questRewardService'
 import { updateProfileStreak } from '@/services/profileService'
 import { hasCompletedDailyOnDate, getYesterdayDailyCompletionStatus } from '@/services/questService'
 import { QUEST_PERIODS } from '@/constants/questOptions'
+import { scheduleRecallAfterLearningPass } from '@/services/questRecallService'
+
+const MIN_BATTLE_INTEL_LEN = 12
 
 async function bumpStreakIfNeeded(profile, period) {
   if (period !== QUEST_PERIODS.DAILY) return
@@ -17,18 +20,32 @@ async function bumpStreakIfNeeded(profile, period) {
   await updateProfileStreak({ streakCurrent: nextCurrent, streakBest: nextBest })
 }
 
-export async function markLearningQuestDone(quest) {
+export async function submitBattleIntel(quest, battleIntel) {
+  const text = String(battleIntel || '').trim()
+  if (text.length < MIN_BATTLE_INTEL_LEN) {
+    throw new Error('Battle Intel must be at least a short concrete summary.')
+  }
+
   return updateQuestRow(quest.id, {
     status: QUEST_STATUS.ASSESSMENT_PENDING,
     assessment_status: QUEST_ASSESSMENT_STATUS.PENDING,
+    battle_intel: text,
+    battle_intel_at: new Date().toISOString(),
     started_at: quest.started_at || new Date().toISOString(),
+    analysis_snapshot: {
+      ...(quest.analysis_snapshot || {}),
+      battle_intel: text,
+      context: quest.context_note || quest.analysis_snapshot?.context || '',
+    },
   })
 }
 
 export async function generateQuestAssessment(quest) {
+  const intel = quest.battle_intel || quest.analysis_snapshot?.battle_intel || ''
   const raw = await invokeQuestAssessmentGenerate({
     title: quest.title,
-    context: quest.analysis_snapshot?.context || '',
+    context: intel,
+    battleIntel: intel,
   })
   const snapshot = {
     questions: raw.questions ?? [],
@@ -67,6 +84,9 @@ export async function submitQuestAssessment({ quest, answers, profile }) {
       description: `Learning quest passed: ${quest.title}`,
     })
     await bumpStreakIfNeeded(profile, quest.period)
+    if (!quest.is_micro && !quest.recall_source_quest_id) {
+      await scheduleRecallAfterLearningPass({ ...quest, ...row, battle_intel: quest.battle_intel })
+    }
     return { quest: row, pass: true, grade }
   }
 

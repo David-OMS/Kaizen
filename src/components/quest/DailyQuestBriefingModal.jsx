@@ -3,7 +3,11 @@ import { Button } from '@/components/ui/button'
 import { QuestCard } from '@/components/quest/QuestCard'
 import { useProfile } from '@/hooks/useProfile'
 import { useDailyQuests } from '@/hooks/useQuests'
-import { useResolveQuest, useSubmitQuestIncomplete } from '@/hooks/useQuestLifecycleMutations'
+import {
+  useResolveQuest,
+  useSubmitQuestAttemptFail,
+  useSubmitQuestIncomplete,
+} from '@/hooks/useQuestLifecycleMutations'
 import { QUEST_STATUS } from '@/constants/questLifecycle'
 
 export function DailyQuestBriefingModal({ open, onClose }) {
@@ -11,6 +15,7 @@ export function DailyQuestBriefingModal({ open, onClose }) {
   const dailyQuery = useDailyQuests()
   const resolveQuest = useResolveQuest()
   const incomplete = useSubmitQuestIncomplete()
+  const attemptFail = useSubmitQuestAttemptFail()
 
   const profile = profileQuery.data
   const quests = (dailyQuery.data ?? []).filter((q) =>
@@ -21,7 +26,7 @@ export function DailyQuestBriefingModal({ open, onClose }) {
       QUEST_STATUS.ASSESSMENT_PENDING,
     ].includes(q.status),
   )
-  const busy = resolveQuest.isPending || incomplete.isPending
+  const busy = resolveQuest.isPending || incomplete.isPending || attemptFail.isPending
 
   return (
     <ModalPanel open={open} title="Daily quests are ready" onClose={onClose} className="max-h-[85vh] overflow-y-auto">
@@ -46,11 +51,15 @@ export function DailyQuestBriefingModal({ open, onClose }) {
                 profile={profile}
                 isResolving={resolveQuest.isPending}
                 isIncompletePending={incomplete.isPending}
+                isAttemptFailPending={attemptFail.isPending}
                 incompleteError={incomplete.error?.message}
+                attemptFailError={attemptFail.error?.message}
                 onComplete={() =>
                   profile && resolveQuest.mutateAsync({ quest, status: 'completed', profile })
                 }
-                onFail={() => profile && resolveQuest.mutateAsync({ quest, status: 'failed', profile })}
+                onAttemptFail={(reason) =>
+                  profile && attemptFail.mutateAsync({ quest, reason, profile })
+                }
                 onIncomplete={(reason) =>
                   profile && incomplete.mutateAsync({ quest, reason, profile })
                 }

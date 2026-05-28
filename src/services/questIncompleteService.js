@@ -57,10 +57,12 @@ export async function submitQuestIncomplete({ quest, reason, profile }) {
   })
 
   if (quest.task_pool_id) {
-    await updateTaskPoolOutcome(quest.task_pool_id, {
-      lastOutcome: TASK_POOL_OUTCOME.INCOMPLETE_DENIED,
-      incrementDrop: true,
-    })
+    if (!quest.analysis_snapshot?.weekly_session) {
+      await updateTaskPoolOutcome(quest.task_pool_id, {
+        lastOutcome: TASK_POOL_OUTCOME.INCOMPLETE_DENIED,
+        incrementDrop: true,
+      })
+    }
   }
 
   return { quest: row, extended: false, verdict }

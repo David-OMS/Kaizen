@@ -11,12 +11,12 @@ export function TaskPoolSection({ raids }) {
     <section className="space-y-4">
       <div className="flex justify-end">
         <Button type="button" className="system-button text-[10px]" onClick={() => setIsModalOpen(true)}>
-          Add Task
+          Add task
         </Button>
       </div>
       <TaskPoolList />
 
-      <ModalPanel open={isModalOpen} title="Add Task Pool Entry" onClose={() => setIsModalOpen(false)}>
+      <ModalPanel open={isModalOpen} title="Add task" onClose={() => setIsModalOpen(false)}>
         <TaskPoolForm raidOptions={raids} onSaved={() => setIsModalOpen(false)} />
       </ModalPanel>
     </section>

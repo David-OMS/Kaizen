@@ -100,11 +100,18 @@ export function buildOutstandingEntries(battles, openAccruals, clientById) {
   return items
 }
 
-export function getTreasuryLedgerSummary({ received, outstanding, expenses, revenueTargetMonthly }) {
+export function getTreasuryLedgerSummary({
+  received,
+  outstanding,
+  expenses,
+  revenueTargetMonthly,
+  collectionReceivedLifetime = 0,
+}) {
   const now = new Date()
   const thisMonthKey = monthKey(now)
 
-  const receivedLifetime = sumAmount(received)
+  const raidReceivedLifetime = sumAmount(received)
+  const receivedLifetime = raidReceivedLifetime + Number(collectionReceivedLifetime || 0)
   const receivedThisMonth = sumAmount(received.filter((r) => isInMonth(r.receivedAt, thisMonthKey)))
 
   const outstandingTributeTotal = sumAmount(outstanding.filter((o) => o.sourceType === 'tribute_ready'))
@@ -120,6 +127,8 @@ export function getTreasuryLedgerSummary({ received, outstanding, expenses, reve
     revenueTarget > 0 ? Math.min(100, Math.round((receivedThisMonth / revenueTarget) * 100)) : 0
 
   return {
+    raidReceivedLifetime,
+    collectionReceivedLifetime: Number(collectionReceivedLifetime || 0),
     receivedLifetime,
     receivedThisMonth,
     outstandingTributeTotal,

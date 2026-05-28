@@ -3,21 +3,30 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { QUEST_REWARD_VISIBILITY, QUEST_SOURCE_TYPES } from '@/constants/questEngine'
 import { QUEST_KIND, QUEST_STATUS } from '@/constants/questLifecycle'
+import { AttemptFailQuestForm } from '@/components/quest/AttemptFailQuestForm'
 import { IncompleteQuestForm } from '@/components/quest/IncompleteQuestForm'
 import { QuestAssessmentModal } from '@/components/quest/QuestAssessmentModal'
+import { BattleIntelModal } from '@/components/quest/BattleIntelModal'
 
 export function QuestCard({
   quest,
   profile,
   onComplete,
-  onFail,
+  onBattleIntel,
+  onAttemptFail,
   onIncomplete,
+  isBattleIntelPending,
+  battleIntelError,
   isResolving,
   isIncompletePending,
+  isAttemptFailPending,
   incompleteError,
+  attemptFailError,
 }) {
   const [showIncomplete, setShowIncomplete] = useState(false)
+  const [showAttemptFail, setShowAttemptFail] = useState(false)
   const [assessOpen, setAssessOpen] = useState(false)
+  const [battleIntelOpen, setBattleIntelOpen] = useState(false)
 
   const isActive = [QUEST_STATUS.ACTIVE, QUEST_STATUS.EXTENDED].includes(quest.status)
   const isAssessmentPending = quest.status === QUEST_STATUS.ASSESSMENT_PENDING
@@ -26,6 +35,8 @@ export function QuestCard({
     quest.quest_kind !== QUEST_KIND.LEARNING &&
     (Number(quest.xp_reward || 0) > 0 || Number(quest.xp_penalty || 0) > 0)
   const isLearning = quest.quest_kind === QUEST_KIND.LEARNING
+  const isRecall = Boolean(quest.is_micro || quest.recall_kind)
+  const showForms = showIncomplete || showAttemptFail
 
   return (
     <>
@@ -43,6 +54,7 @@ export function QuestCard({
         <CardContent className="space-y-2 px-4 text-sm text-zinc-300">
           <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-zinc-500">
             {quest.carryover ? <span className="text-[#A855F7]">Carryover</span> : null}
+            {isRecall ? <span className="text-[#A855F7]">Recall</span> : null}
             {isLearning ? <span className="text-[#7DD3FC]">Learning</span> : null}
             {quest.load_points ? <span>{quest.load_points} load</span> : null}
             {quest.source_type === QUEST_SOURCE_TYPES.AI_GENERATED ? (
@@ -60,7 +72,6 @@ export function QuestCard({
                   <span>+{quest.xp_reward} XP</span>
                 )}
               </p>
-              <p>Penalty: -{quest.xp_penalty} XP</p>
             </>
           ) : isLearning ? (
             <p className="text-xs text-zinc-500">XP on assessment pass</p>
@@ -78,34 +89,46 @@ export function QuestCard({
             </Button>
           ) : null}
 
-          {isActive && !showIncomplete ? (
+          {isActive && !showForms ? (
             <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                className="system-button w-full text-[10px]"
+                disabled={isResolving || isBattleIntelPending}
+                onClick={() => {
+                  if (isLearning && onBattleIntel) {
+                    setBattleIntelOpen(true)
+                    return
+                  }
+                  onComplete()
+                }}
+              >
+                {isLearning ? 'Done (study)' : 'Complete'}
+              </Button>
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  className="system-button flex-1 text-[10px]"
-                  disabled={isResolving}
-                  onClick={onComplete}
+                  variant="ghost"
+                  className="flex-1 text-[10px] text-zinc-400"
+                  onClick={() => {
+                    setShowAttemptFail(false)
+                    setShowIncomplete(true)
+                  }}
                 >
-                  {isLearning ? 'Done (study)' : 'Complete'}
+                  Need more time…
                 </Button>
                 <Button
                   type="button"
-                  className="system-button flex-1 text-[10px]"
-                  disabled={isResolving}
-                  onClick={onFail}
+                  variant="ghost"
+                  className="flex-1 text-[10px] text-zinc-400"
+                  onClick={() => {
+                    setShowIncomplete(false)
+                    setShowAttemptFail(true)
+                  }}
                 >
-                  Fail
+                  Tried, couldn&apos;t…
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-[10px] text-zinc-400"
-                onClick={() => setShowIncomplete(true)}
-              >
-                Incomplete…
-              </Button>
             </div>
           ) : null}
 
@@ -119,6 +142,17 @@ export function QuestCard({
               }}
             />
           ) : null}
+
+          {showAttemptFail ? (
+            <AttemptFailQuestForm
+              isPending={isAttemptFailPending}
+              error={attemptFailError}
+              onSubmit={(reason) => {
+                onAttemptFail?.(reason)
+                setShowAttemptFail(false)
+              }}
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -127,6 +161,18 @@ export function QuestCard({
         profile={profile}
         open={assessOpen}
         onClose={() => setAssessOpen(false)}
+      />
+
+      <BattleIntelModal
+        quest={quest}
+        open={battleIntelOpen}
+        onClose={() => setBattleIntelOpen(false)}
+        isPending={isBattleIntelPending}
+        error={battleIntelError}
+        onSubmit={async (intel) => {
+          await onBattleIntel?.(intel)
+          setBattleIntelOpen(false)
+        }}
       />
     </>
   )
