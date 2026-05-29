@@ -56,8 +56,6 @@ export async function fetchTreasuryLedger() {
   if (battlesRes.error) throw battlesRes.error
   if (clientsRes.error) throw clientsRes.error
   if (expensesRes.error) throw expensesRes.error
-  if (activePeriodRes.error) throw activePeriodRes.error
-  if (collectionEntriesRes.error) throw collectionEntriesRes.error
 
   const clients = clientsRes.data ?? []
   const clientById = Object.fromEntries(clients.map((c) => [c.id, c.name]))
