@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CuriosityBanner } from '@/components/quest/CuriosityBanner'
 import { QuestBoard } from '@/components/quest/QuestBoard'
 import { RecallGate } from '@/components/quest/RecallGate'
 import { QuestLogList } from '@/components/quest/QuestLogList'
@@ -41,6 +42,7 @@ export function QuestsDashboard() {
 
   return (
     <section className="space-y-4">
+      <CuriosityBanner profile={profileQuery.data} />
       <QuestSectionTabs activeSection={activeSection} onSectionChange={setActiveSection} />
 
       {activeSection === 'task_pool' ? <TaskPoolSection raids={raidsQuery.data ?? []} /> : null}

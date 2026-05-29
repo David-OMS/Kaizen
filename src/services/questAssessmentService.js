@@ -7,6 +7,9 @@ import { updateProfileStreak } from '@/services/profileService'
 import { hasCompletedDailyOnDate, getYesterdayDailyCompletionStatus } from '@/services/questService'
 import { QUEST_PERIODS } from '@/constants/questOptions'
 import { scheduleRecallAfterLearningPass } from '@/services/questRecallService'
+import { onCuriosityWrapUpPassed } from '@/services/curiosityRotationService'
+import { QUEST_SOURCE_TYPES } from '@/constants/questEngine'
+import { CURIOSITY_TRACK } from '@/constants/curiosity'
 
 const MIN_BATTLE_INTEL_LEN = 12
 
@@ -84,7 +87,12 @@ export async function submitQuestAssessment({ quest, answers, profile }) {
       description: `Learning quest passed: ${quest.title}`,
     })
     await bumpStreakIfNeeded(profile, quest.period)
-    if (!quest.is_micro && !quest.recall_source_quest_id) {
+    if (quest.source_type === QUEST_SOURCE_TYPES.CURIOSITY) {
+      const track = quest.curiosity_track || quest.analysis_snapshot?.curiosity_track
+      if (track === CURIOSITY_TRACK.WEEK_WRAP_UP) {
+        await onCuriosityWrapUpPassed(profile, quest)
+      }
+    } else if (!quest.is_micro && !quest.recall_source_quest_id) {
       await scheduleRecallAfterLearningPass({ ...quest, ...row, battle_intel: quest.battle_intel })
     }
     return { quest: row, pass: true, grade }

@@ -6,4 +6,5 @@ export const AI_EDGE_FUNCTIONS = {
   NAME_RAID_REWARD: 'name-raid-reward',
   NAME_ACHIEVEMENT: 'name-achievement',
   SCORE_BATTLE_RETREAT: 'score-battle-retreat',
+  PICK_CURIOSITY: 'pick-curiosity-themes',
 }

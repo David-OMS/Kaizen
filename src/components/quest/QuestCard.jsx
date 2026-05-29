@@ -60,6 +60,9 @@ export function QuestCard({
             {quest.source_type === QUEST_SOURCE_TYPES.AI_GENERATED ? (
               <span>AI</span>
             ) : null}
+            {quest.source_type === QUEST_SOURCE_TYPES.CURIOSITY ? (
+              <span className="text-[#A855F7]">Curiosity</span>
+            ) : null}
           </div>
 
           {hasXpEconomy ? (

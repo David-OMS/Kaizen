@@ -1,0 +1,15 @@
+export const CURIOSITY_TRACK = {
+  BOOK_STUDY: 'book_study',
+  COUNTRY_STUDY: 'country_study',
+  PROFESSION_STUDY: 'profession_study',
+  WEEK_WRAP_UP: 'week_wrap_up',
+}
+
+export const CURIOSITY_LOAD_POINTS = 1
+export const CURIOSITY_DIFFICULTY = 'easy'
+
+export const CURIOSITY_STUDY_ROTATION = [
+  CURIOSITY_TRACK.BOOK_STUDY,
+  CURIOSITY_TRACK.COUNTRY_STUDY,
+  CURIOSITY_TRACK.PROFESSION_STUDY,
+]

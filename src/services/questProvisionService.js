@@ -12,6 +12,9 @@ import { assignDailyQuests } from '@/services/questAssignmentService'
 import { buildWeeklyScheduledCandidates } from '@/services/questWeeklySchedulingService'
 import { applyAutoWeeklyFocus } from '@/services/weeklyFocusAutoService'
 import { provisionRecallQuestsForToday } from '@/services/questRecallService'
+import { syncCuriosityRotation } from '@/services/curiosityRotationService'
+import { provisionCuriosityQuestsForToday } from '@/services/curiosityProvisionService'
+import { packQuestCandidates } from '@/utils/questAssignment'
 import {
   computeBehaviorAdjustment,
   computeBreezeBonus,
@@ -65,6 +68,8 @@ export async function runDailyProvision({ force = false } = {}) {
 
   await applyAutoWeeklyFocus(profile)
 
+  const profileAfterCuriosity = await syncCuriosityRotation(profile, today)
+
   const carryovers = await buildDailyCarryovers(yesterday)
   const usedPoolIds = new Set(carryovers.map((c) => c.taskPoolId).filter(Boolean))
   const poolCandidates = await buildPoolCandidatesForDaily(['daily_eligible', 'both'], usedPoolIds)
@@ -72,7 +77,7 @@ export async function runDailyProvision({ force = false } = {}) {
 
   const skills = await getSkills()
   const dailyCreated = await assignDailyQuests({
-    profile,
+    profile: profileAfterCuriosity,
     skills,
     carryovers,
     poolCandidates,
@@ -82,6 +87,18 @@ export async function runDailyProvision({ force = false } = {}) {
   })
   const weeklyPoolIds = new Set(weeklyCandidates.map((c) => c.taskPoolId).filter(Boolean))
   const weeklyCreatedCount = dailyCreated.filter((q) => weeklyPoolIds.has(q.task_pool_id)).length
+
+  const packedForCuriosity = packQuestCandidates({
+    carryovers,
+    poolTasks: [...poolCandidates, ...weeklyCandidates],
+    aiSuggestions: [],
+    totalBudget: dailyBudget,
+  })
+  const curiosityCreated = await provisionCuriosityQuestsForToday({
+    profile: profileAfterCuriosity,
+    todayYmd: today,
+    packed: packedForCuriosity,
+  })
 
   const recallCreated = await provisionRecallQuestsForToday(today)
 
@@ -93,6 +110,7 @@ export async function runDailyProvision({ force = false } = {}) {
     dailyCount: dailyCreated.length,
     weeklyCount: weeklyCreatedCount,
     recallCount: recallCreated.length,
+    curiosityCount: curiosityCreated.length,
     budget: dailyBudget,
   }
 }

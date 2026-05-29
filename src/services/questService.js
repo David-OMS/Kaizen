@@ -33,6 +33,7 @@ function mapQuestPayload(userId, entry) {
     is_micro: entry.isMicro ?? false,
     recall_source_quest_id: entry.recallSourceQuestId ?? null,
     recall_kind: entry.recallKind ?? null,
+    curiosity_track: entry.curiosityTrack ?? entry.analysisSnapshot?.curiosity_track ?? null,
   }
 }
 
