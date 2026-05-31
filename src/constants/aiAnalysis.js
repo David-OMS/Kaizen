@@ -8,4 +8,5 @@ export const AI_EDGE_FUNCTIONS = {
   SCORE_BATTLE_RETREAT: 'score-battle-retreat',
   PICK_CURIOSITY: 'pick-curiosity-themes',
   PICK_SUNDAY_MENTAL: 'pick-sunday-mental-quest',
+  DECOMPOSE_TASK_PROJECT: 'decompose-task-project',
 }

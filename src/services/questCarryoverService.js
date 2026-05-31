@@ -7,19 +7,41 @@ import { getTaskPool } from '@/services/taskPoolService'
 import { loadPointsForQuest } from '@/utils/questBudget'
 import { invokeAnalyzeQuest } from '@/services/aiAnalysisService'
 import { isTaskPoolFullyComplete } from '@/utils/taskPoolComplete'
+import { poolTaskToCandidate, shouldIncludePoolTaskForDaily } from '@/utils/taskPoolProvision'
+import { getTodayYmdInTimezone, getProfileTimezone } from '@/utils/questTimezone'
+import { getProfile } from '@/services/profileService'
+import { syncAllWeeklyQuotaWeeks } from '@/services/taskPoolQuotaService'
 
 async function classifyPoolTask(task) {
   let difficulty = 'medium'
-  let questKind = task.quest_kind || 'execution'
+  const questKind = task.quest_kind || QUEST_KIND.EXECUTION
   try {
     const raw = await invokeAnalyzeQuest({ title: task.title, context: task.context_note || '' })
     difficulty = raw.analysis?.difficulty || difficulty
-    if (raw.analysis?.category === 'learning') questKind = QUEST_KIND.LEARNING
   } catch {
     /* fallback */
   }
   const loadPoints = loadPointsForQuest({ difficulty, questKind })
   return { difficulty, questKind, loadPoints }
+}
+
+export async function buildPoolCandidatesForDaily(eligibleTypes, excludePoolIds = new Set()) {
+  const profile = await getProfile().catch(() => null)
+  const todayYmd = getTodayYmdInTimezone(getProfileTimezone(profile))
+  let pool = await getTaskPool()
+  await syncAllWeeklyQuotaWeeks(pool, todayYmd)
+  pool = await getTaskPool()
+  const candidates = []
+
+  for (const task of pool) {
+    if (!eligibleTypes.includes(task.type)) continue
+    if (excludePoolIds.has(task.id)) continue
+    if (!shouldIncludePoolTaskForDaily(task, todayYmd)) continue
+    const meta = await classifyPoolTask(task)
+    candidates.push(poolTaskToCandidate(task, meta))
+  }
+
+  return candidates
 }
 
 export async function buildDailyCarryovers(yesterdayYmd) {
@@ -59,29 +81,4 @@ export async function buildDailyCarryovers(yesterdayYmd) {
   }
 
   return carryovers
-}
-
-export async function buildPoolCandidatesForDaily(eligibleTypes, excludePoolIds = new Set()) {
-  const pool = await getTaskPool()
-  const candidates = []
-
-  for (const task of pool) {
-    if (!eligibleTypes.includes(task.type)) continue
-    if (excludePoolIds.has(task.id)) continue
-    if (isTaskPoolFullyComplete(task)) continue
-    const meta = await classifyPoolTask(task)
-    candidates.push({
-      id: task.id,
-      taskPoolId: task.id,
-      title: task.title,
-      type: task.type,
-      contextNote: task.context_note,
-      mandatory: task.mandatory,
-      priority: task.priority,
-      ...meta,
-      sourceType: 'task_pool',
-    })
-  }
-
-  return candidates
 }

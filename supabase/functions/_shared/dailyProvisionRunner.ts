@@ -3,6 +3,11 @@ import { provisionCuriosityQuestsForToday, syncCuriosityRotation } from './curio
 import { provisionRecallQuestsForToday } from './recallProvision.ts'
 import { mergeHunterProfileContext } from './hunterProfile.ts'
 import { applyAutoWeeklyFocus, buildWeeklyScheduledCandidates } from './weeklyProvision.ts'
+import {
+  poolTaskToCandidate,
+  shouldIncludePoolTaskForDaily,
+  syncWeeklyQuotaWeeksAdmin,
+} from './taskPoolProvision.ts'
 
 const TZ_DEFAULT = 'Africa/Lagos'
 const OPEN = ['active', 'extended', 'incomplete', 'assessment_pending']
@@ -272,6 +277,9 @@ export async function runDailyProvisionForUser(
 
   const poolRes = await supabase.from('task_pool').select('*').eq('user_id', userId)
   poolRows = poolRes.data ?? poolRows
+  await syncWeeklyQuotaWeeksAdmin(supabase, userId, today)
+  const poolResSynced = await supabase.from('task_pool').select('*').eq('user_id', userId)
+  poolRows = poolResSynced.data ?? poolRows
   const poolById = Object.fromEntries((poolRows ?? []).map((t) => [t.id, t]))
 
   const weeklyCandidates = await buildWeeklyScheduledCandidates(
@@ -308,21 +316,16 @@ export async function runDailyProvisionForUser(
   for (const t of poolRows ?? []) {
     if (t.type !== 'daily_eligible') continue
     if (usedIds.has(t.id)) continue
-    if (t.last_outcome === 'completed') continue
+    if (!shouldIncludePoolTaskForDaily(t, today)) continue
     if (sunday && !t.mandatory) continue
-    const questKind = t.quest_kind || 'execution'
-    poolCandidates.push({
-      id: t.id,
-      taskPoolId: t.id,
-      title: t.title,
-      mandatory: t.mandatory,
-      priority: t.priority,
-      drop_count: t.drop_count,
-      difficulty: 'medium',
-      questKind,
-      loadPoints: loadPoints('medium', questKind),
-      sourceType: 'task_pool',
-    })
+    const questKind = String(t.quest_kind || 'execution')
+    poolCandidates.push(
+      poolTaskToCandidate(t, {
+        difficulty: 'medium',
+        questKind,
+        loadPoints: loadPoints('medium', questKind),
+      }),
+    )
   }
 
   const mergedPool = [
@@ -339,6 +342,7 @@ export async function runDailyProvisionForUser(
       loadPoints: w.loadPoints,
       sourceType: w.sourceType,
       schedulingMeta: w.schedulingMeta,
+      analysisSnapshot: null,
     })),
   ]
 
@@ -369,6 +373,7 @@ export async function runDailyProvisionForUser(
     loadPoints: number
     sourceType?: string
     carryover?: boolean
+    analysisSnapshot?: Record<string, unknown> | null
     schedulingMeta?: {
       weeklyTargetDays: number
       weeklyDistributionMode: string
@@ -396,14 +401,16 @@ export async function runDailyProvisionForUser(
     carryover: Boolean(item.carryover),
     assessment_status: 'none',
     extension_count: 0,
-    analysis_snapshot: item.schedulingMeta
-      ? {
-          weekly_session: true,
-          weekly_target_days: item.schedulingMeta.weeklyTargetDays,
-          weekly_distribution_mode: item.schedulingMeta.weeklyDistributionMode,
-          weekly_week_end: item.schedulingMeta.weekEnd,
-        }
-      : null,
+    analysis_snapshot:
+      item.analysisSnapshot ??
+      (item.schedulingMeta
+        ? {
+            weekly_session: true,
+            weekly_target_days: item.schedulingMeta.weeklyTargetDays,
+            weekly_distribution_mode: item.schedulingMeta.weeklyDistributionMode,
+            weekly_week_end: item.schedulingMeta.weekEnd,
+          }
+        : null),
   }))
 
   if (inserts.length) {

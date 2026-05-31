@@ -73,14 +73,15 @@ function entryFromPacked(item, assignedDate, period) {
     questKind: item.questKind || QUEST_KIND.EXECUTION,
     loadPoints: item.loadPoints,
     carryover: item.carryover ?? false,
-    analysisSnapshot: item.schedulingMeta
-      ? {
-          weekly_session: true,
-          weekly_target_days: item.schedulingMeta.weeklyTargetDays,
-          weekly_distribution_mode: item.schedulingMeta.weeklyDistributionMode,
-          weekly_week_end: item.schedulingMeta.weekEnd,
-        }
-      : undefined,
+    analysisSnapshot: item.analysisSnapshot
+      ?? (item.schedulingMeta
+        ? {
+            weekly_session: true,
+            weekly_target_days: item.schedulingMeta.weeklyTargetDays,
+            weekly_distribution_mode: item.schedulingMeta.weeklyDistributionMode,
+            weekly_week_end: item.schedulingMeta.weekEnd,
+          }
+        : undefined),
     accepted: true,
   }
 }
