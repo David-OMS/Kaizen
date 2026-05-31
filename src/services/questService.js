@@ -1,9 +1,10 @@
-import { endOfDay, endOfWeek, format, startOfDay, startOfWeek, subDays } from 'date-fns'
+import { endOfDay, endOfWeek, format, startOfDay, startOfWeek } from 'date-fns'
 import { QUEST_DEFAULTS, QUEST_REWARD_VISIBILITY, QUEST_SOURCE_TYPES } from '@/constants/questEngine'
 import { QUEST_PERIODS } from '@/constants/questOptions'
-import { QUEST_STATUS, TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
+import { QUEST_ASSESSMENT_STATUS, QUEST_STATUS, TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
 import { getAuthenticatedUserId, supabase } from '@/services/supabase'
 import { getQuestDueDate } from '@/utils/quest'
+import { getTodayYmdInTimezone, getYesterdayYmdInTimezone } from '@/utils/questTimezone'
 
 function mapQuestPayload(userId, entry) {
   return {
@@ -246,23 +247,33 @@ export async function getQuestLog(periodFilter) {
   return data ?? []
 }
 
-export async function hasCompletedDailyOnDate(dateValue) {
-  const start = format(startOfDay(dateValue), 'yyyy-MM-dd')
-  const end = format(endOfDay(dateValue), 'yyyy-MM-dd')
-  const { count, error } = await supabase
-    .from('quest_log')
-    .select('*', { count: 'exact', head: true })
-    .eq('period', 'daily')
-    .in('outcome', ['completed', 'assessment_pass'])
-    .gte('logged_at', start)
-    .lte('logged_at', end)
-
-  if (error) throw error
-  return (count ?? 0) > 0
+function isDailyQuestSuccess(quest) {
+  if (quest.status !== QUEST_STATUS.COMPLETED) return false
+  if (quest.quest_kind === 'learning') {
+    return quest.assessment_status === QUEST_ASSESSMENT_STATUS.PASSED
+  }
+  return true
 }
 
-export async function getYesterdayDailyCompletionStatus() {
-  return hasCompletedDailyOnDate(subDays(new Date(), 1))
+/** At least one successfully completed daily on this assigned_date (YYYY-MM-DD). */
+export async function hasCompletedDailyOnYmd(ymd) {
+  const { data, error } = await supabase
+    .from('quests')
+    .select('status, quest_kind, assessment_status')
+    .eq('period', QUEST_PERIODS.DAILY)
+    .eq('assigned_date', ymd)
+    .eq('status', QUEST_STATUS.COMPLETED)
+
+  if (error) throw error
+  return (data ?? []).some(isDailyQuestSuccess)
+}
+
+export async function getYesterdayDailyCompletionStatus(timeZone) {
+  return hasCompletedDailyOnYmd(getYesterdayYmdInTimezone(timeZone))
+}
+
+export async function getTodayDailyCompletionStatus(timeZone) {
+  return hasCompletedDailyOnYmd(getTodayYmdInTimezone(timeZone))
 }
 
 export async function getQuestsByIds(ids) {

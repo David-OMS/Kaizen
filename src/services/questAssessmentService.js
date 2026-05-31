@@ -3,8 +3,9 @@ import { invokeGradeQuestAssessment, invokeQuestAssessmentGenerate } from '@/ser
 import { appendQuestLogEntry, updateQuestRow } from '@/services/questService'
 import { getQuestRewards } from '@/utils/quest'
 import { grantQuestXp } from '@/services/questRewardService'
-import { updateProfileStreak } from '@/services/profileService'
-import { hasCompletedDailyOnDate, getYesterdayDailyCompletionStatus } from '@/services/questService'
+import { bumpDailyStreak } from '@/services/profileService'
+import { hasCompletedDailyOnYmd } from '@/services/questService'
+import { getProfileTimezone, getTodayYmdInTimezone } from '@/utils/questTimezone'
 import { QUEST_PERIODS } from '@/constants/questOptions'
 import { scheduleRecallAfterLearningPass } from '@/services/questRecallService'
 import { onCuriosityWrapUpPassed } from '@/services/curiosityRotationService'
@@ -13,16 +14,6 @@ import { QUEST_SOURCE_TYPES } from '@/constants/questEngine'
 import { CURIOSITY_TRACK } from '@/constants/curiosity'
 
 const MIN_BATTLE_INTEL_LEN = 12
-
-async function bumpStreakIfNeeded(profile, period) {
-  if (period !== QUEST_PERIODS.DAILY) return
-  const hasCompletedToday = await hasCompletedDailyOnDate(new Date())
-  if (hasCompletedToday) return
-  const hadYesterday = await getYesterdayDailyCompletionStatus()
-  const nextCurrent = hadYesterday ? Number(profile.streak_current || 0) + 1 : 1
-  const nextBest = Math.max(Number(profile.streak_best || 0), nextCurrent)
-  await updateProfileStreak({ streakCurrent: nextCurrent, streakBest: nextBest })
-}
 
 export async function submitBattleIntel(quest, battleIntel) {
   const text = String(battleIntel || '').trim()
@@ -70,6 +61,11 @@ export async function submitQuestAssessment({ quest, answers, profile }) {
   })
 
   if (grade.pass) {
+    const tz = getProfileTimezone(profile)
+    const firstDailyToday =
+      quest.period !== QUEST_PERIODS.DAILY ||
+      !(await hasCompletedDailyOnYmd(getTodayYmdInTimezone(tz)))
+
     const row = await updateQuestRow(quest.id, {
       status: QUEST_STATUS.COMPLETED,
       assessment_status: QUEST_ASSESSMENT_STATUS.PASSED,
@@ -87,7 +83,7 @@ export async function submitQuestAssessment({ quest, answers, profile }) {
       period: quest.period,
       description: `Learning quest passed: ${quest.title}`,
     })
-    await bumpStreakIfNeeded(profile, quest.period)
+    if (firstDailyToday) await bumpDailyStreak(profile)
     if (quest.source_type === QUEST_SOURCE_TYPES.CURIOSITY) {
       const track = quest.curiosity_track || quest.analysis_snapshot?.curiosity_track
       if (track === CURIOSITY_TRACK.WEEK_WRAP_UP) {

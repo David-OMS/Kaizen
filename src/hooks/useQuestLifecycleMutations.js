@@ -10,13 +10,13 @@ import {
 } from '@/services/questAssessmentService'
 import {
   appendQuestLogEntry,
-  getYesterdayDailyCompletionStatus,
-  hasCompletedDailyOnDate,
+  hasCompletedDailyOnYmd,
   updateQuestRow,
   updateQuestStatus,
   voidDuplicatePoolQuest,
 } from '@/services/questService'
-import { updateProfileStreak } from '@/services/profileService'
+import { bumpDailyStreak } from '@/services/profileService'
+import { getProfileTimezone, getTodayYmdInTimezone } from '@/utils/questTimezone'
 import { applyTaskPoolOutcomeOnQuestSuccess } from '@/services/taskPoolOutcomeOnSuccess'
 import { updateTaskPoolOutcome } from '@/services/taskPoolService'
 import { TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
@@ -36,17 +36,6 @@ function invalidateQuests(queryClient) {
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.taskPool })
 }
 
-async function bumpStreak(profile, period) {
-  if (period !== QUEST_PERIODS.DAILY) return
-  if (await hasCompletedDailyOnDate(new Date())) return
-  const hadYesterday = await getYesterdayDailyCompletionStatus()
-  const nextCurrent = hadYesterday ? Number(profile.streak_current || 0) + 1 : 1
-  await updateProfileStreak({
-    streakCurrent: nextCurrent,
-    streakBest: Math.max(Number(profile.streak_best || 0), nextCurrent),
-  })
-}
-
 export function useSubmitBattleIntel() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -62,6 +51,11 @@ export function useResolveQuest() {
       if (status === 'completed' && isLearningQuest(quest)) {
         throw new Error('LEARNING_NEEDS_BATTLE_INTEL')
       }
+
+      const tz = getProfileTimezone(profile)
+      const firstDailyToday =
+        quest.period !== QUEST_PERIODS.DAILY ||
+        !(await hasCompletedDailyOnYmd(getTodayYmdInTimezone(tz)))
 
       const completedAt = status === 'completed' ? new Date().toISOString() : null
       const nextStatus = status === 'completed' ? QUEST_STATUS.COMPLETED : QUEST_STATUS.FAILED
@@ -88,7 +82,7 @@ export function useResolveQuest() {
           period: quest.period,
           description: `${quest.period} quest completed: ${quest.title}`,
         })
-        await bumpStreak(profile, quest.period)
+        if (firstDailyToday) await bumpDailyStreak(profile)
         if (quest.task_pool_id) {
           await applyTaskPoolOutcomeOnQuestSuccess(quest)
         }
