@@ -37,7 +37,8 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       devOptions: { enabled: true, type: 'module' },
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-1024.png'],
       manifest: {
         name: 'Kaizen',
