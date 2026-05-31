@@ -1,7 +1,7 @@
 import { endOfDay, endOfWeek, format, startOfDay, startOfWeek, subDays } from 'date-fns'
 import { QUEST_DEFAULTS, QUEST_REWARD_VISIBILITY, QUEST_SOURCE_TYPES } from '@/constants/questEngine'
 import { QUEST_PERIODS } from '@/constants/questOptions'
-import { QUEST_STATUS } from '@/constants/questLifecycle'
+import { QUEST_STATUS, TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
 import { getAuthenticatedUserId, supabase } from '@/services/supabase'
 import { getQuestDueDate } from '@/utils/quest'
 
@@ -153,6 +153,45 @@ export async function createQuestEntries(entries) {
   const { data, error } = await supabase.from('quests').insert(payload).select('*')
   if (error) throw error
   return data ?? []
+}
+
+const OPEN_QUEST_STATUSES = [
+  QUEST_STATUS.ACTIVE,
+  QUEST_STATUS.EXTENDED,
+  QUEST_STATUS.INCOMPLETE,
+  QUEST_STATUS.ASSESSMENT_PENDING,
+]
+
+/** Drop a mistaken re-assignment when the pool track is already finished — no XP, no quest_log. */
+export async function voidDuplicatePoolQuest(questId) {
+  const userId = await getAuthenticatedUserId()
+  const { data: quest, error: questErr } = await supabase
+    .from('quests')
+    .select('id, task_pool_id, status')
+    .eq('id', questId)
+    .eq('user_id', userId)
+    .single()
+
+  if (questErr) throw questErr
+  if (!quest.task_pool_id) throw new Error('Only pool quests can be removed this way.')
+  if (!OPEN_QUEST_STATUSES.includes(quest.status)) {
+    throw new Error('Quest is not open.')
+  }
+
+  const { data: pool, error: poolErr } = await supabase
+    .from('task_pool')
+    .select('last_outcome')
+    .eq('id', quest.task_pool_id)
+    .eq('user_id', userId)
+    .single()
+
+  if (poolErr) throw poolErr
+  if (pool.last_outcome !== TASK_POOL_OUTCOME.COMPLETED) {
+    throw new Error('Pool task is not marked complete yet.')
+  }
+
+  const { error: deleteErr } = await supabase.from('quests').delete().eq('id', questId).eq('user_id', userId)
+  if (deleteErr) throw deleteErr
 }
 
 export async function updateQuestRow(questId, patch) {

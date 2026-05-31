@@ -4,6 +4,8 @@ import { QUEST_PERIODS } from '@/constants/questOptions'
 import { QUEST_STATUS } from '@/constants/questLifecycle'
 import { useDailyQuests, useWeeklyQuests } from '@/hooks/useQuests'
 import { useProfile } from '@/hooks/useProfile'
+import { useTaskPool } from '@/hooks/useTaskPool'
+import { isTaskPoolFullyComplete } from '@/utils/taskPoolComplete'
 import { QuestCard } from '@/components/quest/QuestCard'
 
 export function QuestBoard({
@@ -12,6 +14,9 @@ export function QuestBoard({
   onBattleIntel,
   onIncomplete,
   onAttemptFail,
+  onVoidDuplicate,
+  isVoidDuplicatePending,
+  voidDuplicateError,
   isBattleIntelPending,
   battleIntelError,
   isResolving,
@@ -21,7 +26,9 @@ export function QuestBoard({
   attemptFailError,
 }) {
   const profileQuery = useProfile()
+  const poolQuery = useTaskPool()
   const questsQuery = period === QUEST_PERIODS.DAILY ? useDailyQuests() : useWeeklyQuests()
+  const poolById = Object.fromEntries((poolQuery.data ?? []).map((task) => [task.id, task]))
 
   if (questsQuery.isLoading) {
     return (
@@ -40,17 +47,11 @@ export function QuestBoard({
     )
   }
 
-  const allowedStatuses =
-    period === QUEST_PERIODS.WEEKLY
-      ? [
-          QUEST_STATUS.ACTIVE,
-          QUEST_STATUS.EXTENDED,
-          QUEST_STATUS.ASSESSMENT_PENDING,
-          QUEST_STATUS.COMPLETED,
-        ]
-      : [QUEST_STATUS.ACTIVE, QUEST_STATUS.EXTENDED, QUEST_STATUS.ASSESSMENT_PENDING]
-
-  const quests = (questsQuery.data ?? []).filter((q) => allowedStatuses.includes(q.status))
+  const openQuests = (questsQuery.data ?? []).filter((q) =>
+    [QUEST_STATUS.ACTIVE, QUEST_STATUS.EXTENDED, QUEST_STATUS.ASSESSMENT_PENDING].includes(q.status),
+  )
+  const doneQuests = (questsQuery.data ?? []).filter((q) => q.status === QUEST_STATUS.COMPLETED)
+  const quests = [...openQuests, ...doneQuests]
 
   return (
     <section className="space-y-4">
@@ -63,7 +64,13 @@ export function QuestBoard({
               key={quest.id}
               quest={quest}
               profile={profileQuery.data}
+              poolAlreadyComplete={
+                quest.task_pool_id ? isTaskPoolFullyComplete(poolById[quest.task_pool_id]) : false
+              }
               isResolving={isResolving}
+              isVoidDuplicatePending={isVoidDuplicatePending}
+              voidDuplicateError={voidDuplicateError}
+              onVoidDuplicate={() => onVoidDuplicate?.(quest)}
               isIncompletePending={isIncompletePending}
               onComplete={() => onResolveQuest(quest, 'completed')}
               onBattleIntel={(intel) => onBattleIntel?.(quest, intel)}

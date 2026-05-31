@@ -49,5 +49,6 @@ Tailwind classes only. If a style can't be expressed in Tailwind, it goes in a C
 One file — src/services/supabase.js — initialises and exports the Supabase client. Nothing else imports createClient. Everything imports from that one file.
 14. Business logic lives in utils.
 Streak calculation, XP total derivation, rank resolution from XP — these are pure functions in utils/. They take inputs, return outputs, touch nothing external. This makes them testable and reusable without pulling in any React.
-15. addXP is the only door.
+15. No direct writes to profile.xp anywhere. The addXP util/service function is the only entry point. You must never shortcut this.
 As defined in the build rules above — no direct writes to profile.xp anywhere. The addXP util/service function is the only entry point. You must never shortcut this.
+16. Fixes must preserve the whole system. Before changing behavior, trace how it interacts with existing flows (mandatory carryover, repeat policies, provision, XP, streaks). Never ship a narrow fix that breaks another part of the app. Prefer a complete, coherent system over patching one symptom.

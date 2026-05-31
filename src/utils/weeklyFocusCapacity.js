@@ -1,4 +1,5 @@
 import { computeWeeklyBudgetPoints, loadPointsForQuest } from '@/utils/questBudget'
+import { isTaskPoolFullyComplete } from '@/utils/taskPoolComplete'
 
 const REPEATABLE_WEEKLY_TYPE = 'weekly_eligible'
 const REPEAT_ALWAYS = 'always'
@@ -15,7 +16,10 @@ function taskWeeklyDemandPoints(task) {
 
 export function getRepeatableWeeklyTasks(tasks) {
   return (tasks ?? []).filter(
-    (t) => t.type === REPEATABLE_WEEKLY_TYPE && t.repeat_policy === REPEAT_ALWAYS,
+    (t) =>
+      t.type === REPEATABLE_WEEKLY_TYPE &&
+      t.repeat_policy === REPEAT_ALWAYS &&
+      !isTaskPoolFullyComplete(t),
   )
 }
 

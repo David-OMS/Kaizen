@@ -37,7 +37,7 @@ function configureVapid() {
   webpush.setVapidDetails(subject, publicKey, privateKey)
 }
 
-async function userIdsNeedingReminder(supabase: SupabaseClient): Promise<Set<string>> {
+async function userIdsWithActiveDailiesToday(supabase: SupabaseClient): Promise<Set<string>> {
   const { data: profiles } = await supabase.from('profile').select('id, quest_timezone')
   const tzByUser = Object.fromEntries(
     (profiles ?? []).map((p) => [p.id, String(p.quest_timezone || 'Africa/Lagos')]),
@@ -51,12 +51,12 @@ async function userIdsNeedingReminder(supabase: SupabaseClient): Promise<Set<str
 
   if (error) throw error
 
-  const need = new Set<string>()
+  const users = new Set<string>()
   for (const q of quests ?? []) {
     const tz = tzByUser[q.user_id] || 'Africa/Lagos'
-    if (q.assigned_date === ymdInTz(tz)) need.add(q.user_id)
+    if (q.assigned_date === ymdInTz(tz)) users.add(q.user_id)
   }
-  return need
+  return users
 }
 
 export async function sendQuestPushNotifications(
@@ -71,14 +71,16 @@ export async function sendQuestPushNotifications(
   if (error) throw error
   if (!subs?.length) return { sent: 0, skipped: 0, type }
 
-  const reminderUsers =
-    type === 'daily_reminder' ? await userIdsNeedingReminder(supabase) : null
+  const activeTodayUsers =
+    type === 'daily_ready' || type === 'daily_reminder'
+      ? await userIdsWithActiveDailiesToday(supabase)
+      : null
 
   let sent = 0
   let skipped = 0
 
   for (const row of subs) {
-    if (reminderUsers && !reminderUsers.has(row.user_id)) {
+    if (activeTodayUsers && !activeTodayUsers.has(row.user_id)) {
       skipped += 1
       continue
     }

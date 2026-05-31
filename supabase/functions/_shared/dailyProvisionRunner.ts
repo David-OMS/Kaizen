@@ -1,5 +1,8 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import { provisionCuriosityQuestsForToday, syncCuriosityRotation } from './curiosityProvision.ts'
+import { provisionRecallQuestsForToday } from './recallProvision.ts'
 import { mergeHunterProfileContext } from './hunterProfile.ts'
+import { applyAutoWeeklyFocus, buildWeeklyScheduledCandidates } from './weeklyProvision.ts'
 
 const TZ_DEFAULT = 'Africa/Lagos'
 const OPEN = ['active', 'extended', 'incomplete', 'assessment_pending']
@@ -38,15 +41,16 @@ function loadPoints(difficulty: string, questKind: string): number {
 function dailyBudget(profile: Record<string, unknown>, logs: { outcome: string }[]): number {
   const bw = String(profile.quest_bandwidth || 'normal')
   const base = BANDWIDTH_DAILY[bw] ?? 6
-  if (!logs.length) return Math.min(12, Math.max(3, base))
-  const ok = logs.filter((l) => l.outcome === 'completed' || l.outcome === 'assessment_pass').length
-  const rate = ok / logs.length
-  const adj = rate >= 0.85 ? 1 : rate < 0.4 ? -1 : 0
   const override = profile.daily_budget_points_override
   if (override != null && Number.isFinite(Number(override))) {
     return Math.min(12, Math.max(3, Number(override)))
   }
-  return Math.min(12, Math.max(3, base + adj))
+  if (!logs.length) return Math.min(12, Math.max(3, base))
+  const ok = logs.filter((l) => l.outcome === 'completed' || l.outcome === 'assessment_pass').length
+  const rate = ok / logs.length
+  const adj = rate >= 0.85 ? 1 : rate < 0.4 ? -1 : 0
+  const breeze = rate >= 0.85 && logs.length >= 5 ? 1 : 0
+  return Math.min(12, Math.max(3, base + adj + breeze))
 }
 
 function sumLoad(items: { loadPoints: number }[]): number {
@@ -93,6 +97,57 @@ async function addXpAdmin(supabase: SupabaseClient, userId: string, amount: numb
   const { data } = await supabase.from('xp_log').select('amount').eq('user_id', userId)
   const total = (data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0)
   await supabase.from('profile').update({ xp: total }).eq('id', userId)
+}
+
+function isSundayYmd(ymd: string): boolean {
+  const d = new Date(`${ymd}T12:00:00`)
+  return d.getDay() === 0
+}
+
+function shouldAddSundayMentalQuest(
+  packed: { mandatory?: boolean; difficulty?: string; loadPoints?: number }[],
+): boolean {
+  const mandatory = packed.filter((q) => q.mandatory)
+  if (!mandatory.length) return true
+  return !mandatory.some(
+    (q) =>
+      q.difficulty === 'hard' ||
+      q.difficulty === 'legendary' ||
+      Number(q.loadPoints ?? 0) >= 4,
+  )
+}
+
+async function fetchSundayMentalQuest(
+  supabaseUrl: string,
+  serviceKey: string,
+  profile: Record<string, unknown>,
+): Promise<{ title: string; journalPrompt: string }> {
+  const fallback = {
+    title: 'Sunday journal — what are you avoiding?',
+    journalPrompt:
+      'Write for 10–15 minutes about something you keep putting off that connects to your current goals. Be specific: what is it, why does it matter, and what is one honest reason you have not moved on it yet?',
+  }
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/pick-sunday-mental-quest`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        hunterVision: mergeHunterProfileContext(profile),
+        hunterGoals: profile.hunter_goals ?? '',
+      }),
+    })
+    if (!res.ok) return fallback
+    const body = await res.json()
+    return {
+      title: String(body.title || fallback.title).slice(0, 120),
+      journalPrompt: String(body.journalPrompt || fallback.journalPrompt).slice(0, 600),
+    }
+  } catch {
+    return fallback
+  }
 }
 
 async function fetchAiSuggestions(
@@ -171,8 +226,8 @@ export async function runDailyProvisionForUser(
     .eq('period', 'daily')
     .eq('assigned_date', yesterday)
 
-  const { data: poolRows } = await supabase.from('task_pool').select('*').eq('user_id', userId)
-  const poolById = Object.fromEntries((poolRows ?? []).map((t) => [t.id, t]))
+  let { data: poolRows } = await supabase.from('task_pool').select('*').eq('user_id', userId)
+  const poolByIdInitial = Object.fromEntries((poolRows ?? []).map((t) => [t.id, t]))
 
   for (const q of yQuests ?? []) {
     if (!OPEN.includes(q.status)) continue
@@ -197,7 +252,7 @@ export async function runDailyProvisionForUser(
     await addXpAdmin(supabase, userId, PENALTY_DAILY_EXPIRED, 'daily_quest_failed', `Daily quest expired: ${q.title}`)
 
     if (q.task_pool_id) {
-      const row = poolById[q.task_pool_id]
+      const row = poolByIdInitial[q.task_pool_id]
       await supabase
         .from('task_pool')
         .update({
@@ -208,12 +263,34 @@ export async function runDailyProvisionForUser(
     }
   }
 
+  await applyAutoWeeklyFocus(supabase, userId, profile, poolRows ?? [])
+
+  const profileAfterCuriosity = await syncCuriosityRotation(supabase, userId, profile, today, {
+    supabaseUrl: opts.supabaseUrl,
+    serviceKey: opts.serviceKey,
+  })
+
+  const poolRes = await supabase.from('task_pool').select('*').eq('user_id', userId)
+  poolRows = poolRes.data ?? poolRows
+  const poolById = Object.fromEntries((poolRows ?? []).map((t) => [t.id, t]))
+
+  const weeklyCandidates = await buildWeeklyScheduledCandidates(
+    supabase,
+    userId,
+    poolRows ?? [],
+    today,
+  )
+
+  const sunday = isSundayYmd(today)
+
   const carryovers: Record<string, unknown>[] = []
   for (const q of yQuests ?? []) {
     const done = q.status === 'completed' && (q.quest_kind !== 'learning' || q.assessment_status === 'passed')
     if (done) continue
     const poolRow = q.task_pool_id ? poolById[q.task_pool_id] : null
+    if (poolRow?.last_outcome === 'completed') continue
     if (!poolRow?.mandatory && ['expired', 'failed'].includes(q.status)) continue
+    if (sunday && !poolRow?.mandatory) continue
     carryovers.push({
       title: q.title,
       taskPoolId: q.task_pool_id,
@@ -229,8 +306,10 @@ export async function runDailyProvisionForUser(
   const usedIds = new Set(carryovers.map((c) => c.taskPoolId).filter(Boolean))
   const poolCandidates: Record<string, unknown>[] = []
   for (const t of poolRows ?? []) {
-    if (!['daily_eligible', 'both'].includes(t.type)) continue
+    if (t.type !== 'daily_eligible') continue
     if (usedIds.has(t.id)) continue
+    if (t.last_outcome === 'completed') continue
+    if (sunday && !t.mandatory) continue
     const questKind = t.quest_kind || 'execution'
     poolCandidates.push({
       id: t.id,
@@ -246,9 +325,26 @@ export async function runDailyProvisionForUser(
     })
   }
 
+  const mergedPool = [
+    ...(poolCandidates as { loadPoints: number; mandatory?: boolean; priority?: string; drop_count?: number; id?: string }[]),
+    ...weeklyCandidates.map((w) => ({
+      id: w.id,
+      taskPoolId: w.taskPoolId,
+      title: w.title,
+      mandatory: w.mandatory,
+      priority: w.priority,
+      drop_count: w.drop_count,
+      difficulty: w.difficulty,
+      questKind: w.questKind,
+      loadPoints: w.loadPoints,
+      sourceType: w.sourceType,
+      schedulingMeta: w.schedulingMeta,
+    })),
+  ]
+
   const usedCarry = sumLoad(carryovers as { loadPoints: number }[])
   const ai = await fetchAiSuggestions(opts.supabaseUrl, opts.serviceKey, {
-    hunterVision: mergeHunterProfileContext(profile),
+    hunterVision: mergeHunterProfileContext(profileAfterCuriosity),
     skills: [],
     pool: (poolRows ?? []).map((t) => ({ id: t.id, title: t.title, mandatory: t.mandatory, priority: t.priority })),
     carryovers: carryovers.map((c) => ({ title: c.title, loadPoints: c.loadPoints })),
@@ -258,7 +354,7 @@ export async function runDailyProvisionForUser(
 
   const packed = packCandidates(
     carryovers as { loadPoints: number }[],
-    poolCandidates as { loadPoints: number; mandatory?: boolean; priority?: string; drop_count?: number }[],
+    mergedPool,
     ai,
     budget,
   )
@@ -273,6 +369,11 @@ export async function runDailyProvisionForUser(
     loadPoints: number
     sourceType?: string
     carryover?: boolean
+    schedulingMeta?: {
+      weeklyTargetDays: number
+      weeklyDistributionMode: string
+      weekEnd: string
+    }
   }
 
   const inserts = (packed as Packed[]).map((item) => ({
@@ -295,6 +396,14 @@ export async function runDailyProvisionForUser(
     carryover: Boolean(item.carryover),
     assessment_status: 'none',
     extension_count: 0,
+    analysis_snapshot: item.schedulingMeta
+      ? {
+          weekly_session: true,
+          weekly_target_days: item.schedulingMeta.weeklyTargetDays,
+          weekly_distribution_mode: item.schedulingMeta.weeklyDistributionMode,
+          weekly_week_end: item.schedulingMeta.weekEnd,
+        }
+      : null,
   }))
 
   if (inserts.length) {
@@ -314,6 +423,58 @@ export async function runDailyProvisionForUser(
     }
   }
 
+  const curiosityCount = await provisionCuriosityQuestsForToday(
+    supabase,
+    userId,
+    profileAfterCuriosity,
+    today,
+    packed as Packed[],
+  )
+
+  const recallCount = await provisionRecallQuestsForToday(supabase, userId, today)
+
+  let sundayMentalCount = 0
+  if (sunday && shouldAddSundayMentalQuest(packed as Packed[])) {
+    const { data: todayRows } = await supabase
+      .from('quests')
+      .select('analysis_snapshot')
+      .eq('user_id', userId)
+      .eq('period', 'daily')
+      .eq('assigned_date', today)
+
+    const hasSunday = (todayRows ?? []).some(
+      (r) => (r.analysis_snapshot as Record<string, unknown>)?.sunday_mental === true,
+    )
+
+    if (!hasSunday) {
+      const picked = await fetchSundayMentalQuest(opts.supabaseUrl, opts.serviceKey, profile)
+      const { error: sunErr } = await supabase.from('quests').insert({
+        user_id: userId,
+        task_pool_id: null,
+        title: picked.title,
+        period: 'daily',
+        assigned_date: today,
+        due_date: today,
+        status: 'active',
+        xp_reward: dailyReward,
+        xp_penalty: dailyPenalty,
+        source_type: 'system_generated',
+        reward_visibility: 'known',
+        accepted: true,
+        difficulty: 'easy',
+        fear_level: 1,
+        quest_kind: 'execution',
+        load_points: 1,
+        carryover: false,
+        assessment_status: 'none',
+        extension_count: 0,
+        analysis_snapshot: { sunday_mental: true, journal_prompt: picked.journalPrompt },
+      })
+      if (sunErr) throw formatDbError(sunErr)
+      sundayMentalCount = 1
+    }
+  }
+
   const { error: rpcErr } = await supabase.rpc('mark_daily_provision', { p_user_id: userId })
   if (rpcErr) {
     await supabase
@@ -322,7 +483,19 @@ export async function runDailyProvisionForUser(
       .eq('id', userId)
   }
 
-  return { skipped: false, today, dailyCount: inserts.length, budget }
+  const weeklyPoolIds = new Set(weeklyCandidates.map((w) => w.taskPoolId))
+  const weeklyCreatedCount = (packed as Packed[]).filter((p) => p.taskPoolId && weeklyPoolIds.has(p.taskPoolId)).length
+
+  return {
+    skipped: false,
+    today,
+    dailyCount: inserts.length,
+    weeklyCount: weeklyCreatedCount,
+    curiosityCount,
+    recallCount,
+    sundayMentalCount,
+    budget,
+  }
 }
 
 export async function runDailyProvisionAllUsers(

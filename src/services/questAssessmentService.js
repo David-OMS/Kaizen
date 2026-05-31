@@ -8,6 +8,7 @@ import { hasCompletedDailyOnDate, getYesterdayDailyCompletionStatus } from '@/se
 import { QUEST_PERIODS } from '@/constants/questOptions'
 import { scheduleRecallAfterLearningPass } from '@/services/questRecallService'
 import { onCuriosityWrapUpPassed } from '@/services/curiosityRotationService'
+import { applyTaskPoolOutcomeOnQuestSuccess } from '@/services/taskPoolOutcomeOnSuccess'
 import { QUEST_SOURCE_TYPES } from '@/constants/questEngine'
 import { CURIOSITY_TRACK } from '@/constants/curiosity'
 
@@ -92,8 +93,11 @@ export async function submitQuestAssessment({ quest, answers, profile }) {
       if (track === CURIOSITY_TRACK.WEEK_WRAP_UP) {
         await onCuriosityWrapUpPassed(profile, quest)
       }
-    } else if (!quest.is_micro && !quest.recall_source_quest_id) {
-      await scheduleRecallAfterLearningPass({ ...quest, ...row, battle_intel: quest.battle_intel })
+    } else {
+      await applyTaskPoolOutcomeOnQuestSuccess(quest)
+      if (!quest.is_micro && !quest.recall_source_quest_id) {
+        await scheduleRecallAfterLearningPass({ ...quest, ...row, battle_intel: quest.battle_intel })
+      }
     }
     return { quest: row, pass: true, grade }
   }

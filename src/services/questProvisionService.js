@@ -14,7 +14,13 @@ import { applyAutoWeeklyFocus } from '@/services/weeklyFocusAutoService'
 import { provisionRecallQuestsForToday } from '@/services/questRecallService'
 import { syncCuriosityRotation } from '@/services/curiosityRotationService'
 import { provisionCuriosityQuestsForToday } from '@/services/curiosityProvisionService'
+import { provisionSundayMentalQuestForToday } from '@/services/sundayMentalProvisionService'
 import { packQuestCandidates } from '@/utils/questAssignment'
+import {
+  filterSundayCarryovers,
+  filterSundayPoolCandidates,
+  isSundayYmd,
+} from '@/utils/sundayProvision'
 import {
   computeBehaviorAdjustment,
   computeBreezeBonus,
@@ -70,10 +76,17 @@ export async function runDailyProvision({ force = false } = {}) {
 
   const profileAfterCuriosity = await syncCuriosityRotation(profile, today)
 
-  const carryovers = await buildDailyCarryovers(yesterday)
+  const sunday = isSundayYmd(today)
+  let carryovers = await buildDailyCarryovers(yesterday)
+  if (sunday) carryovers = filterSundayCarryovers(carryovers)
+
   const usedPoolIds = new Set(carryovers.map((c) => c.taskPoolId).filter(Boolean))
-  const poolCandidates = await buildPoolCandidatesForDaily(['daily_eligible', 'both'], usedPoolIds)
-  const weeklyCandidates = await buildWeeklyScheduledCandidates({ timezone: tz })
+  let poolCandidates = await buildPoolCandidatesForDaily(['daily_eligible'], usedPoolIds)
+  let weeklyCandidates = await buildWeeklyScheduledCandidates({ timezone: tz })
+  if (sunday) {
+    poolCandidates = filterSundayPoolCandidates(poolCandidates)
+    weeklyCandidates = filterSundayPoolCandidates(weeklyCandidates)
+  }
 
   const skills = await getSkills()
   const dailyCreated = await assignDailyQuests({
@@ -100,6 +113,12 @@ export async function runDailyProvision({ force = false } = {}) {
     packed: packedForCuriosity,
   })
 
+  const sundayMentalCreated = await provisionSundayMentalQuestForToday({
+    profile: profileAfterCuriosity,
+    todayYmd: today,
+    packed: packedForCuriosity,
+  })
+
   const recallCreated = await provisionRecallQuestsForToday(today)
 
   await markDailyProvisionComplete()
@@ -111,6 +130,7 @@ export async function runDailyProvision({ force = false } = {}) {
     weeklyCount: weeklyCreatedCount,
     recallCount: recallCreated.length,
     curiosityCount: curiosityCreated.length,
+    sundayMentalCount: sundayMentalCreated.length,
     budget: dailyBudget,
   }
 }

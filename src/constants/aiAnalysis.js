@@ -7,4 +7,5 @@ export const AI_EDGE_FUNCTIONS = {
   NAME_ACHIEVEMENT: 'name-achievement',
   SCORE_BATTLE_RETREAT: 'score-battle-retreat',
   PICK_CURIOSITY: 'pick-curiosity-themes',
+  PICK_SUNDAY_MENTAL: 'pick-sunday-mental-quest',
 }

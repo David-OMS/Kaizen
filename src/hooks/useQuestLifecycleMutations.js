@@ -14,11 +14,12 @@ import {
   hasCompletedDailyOnDate,
   updateQuestRow,
   updateQuestStatus,
+  voidDuplicatePoolQuest,
 } from '@/services/questService'
 import { updateProfileStreak } from '@/services/profileService'
+import { applyTaskPoolOutcomeOnQuestSuccess } from '@/services/taskPoolOutcomeOnSuccess'
 import { updateTaskPoolOutcome } from '@/services/taskPoolService'
 import { TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
-import { hasMetWeeklyTargetThisWeek } from '@/services/questWeeklySchedulingService'
 import {
   getQuestPenaltyXp,
   grantQuestXp,
@@ -89,13 +90,7 @@ export function useResolveQuest() {
         })
         await bumpStreak(profile, quest.period)
         if (quest.task_pool_id) {
-          const isWeeklySession = Boolean(quest.analysis_snapshot?.weekly_session)
-          if (!isWeeklySession || (await hasMetWeeklyTargetThisWeek(quest.task_pool_id))) {
-            await updateTaskPoolOutcome(quest.task_pool_id, {
-              lastOutcome: TASK_POOL_OUTCOME.COMPLETED,
-              incrementDrop: false,
-            })
-          }
+          await applyTaskPoolOutcomeOnQuestSuccess(quest)
         }
       } else {
         await appendQuestLogEntry({
@@ -153,6 +148,14 @@ export function useQuestAssessment() {
     onSuccess: () => invalidateQuests(queryClient),
   })
   return { gen, submit }
+}
+
+export function useVoidDuplicatePoolQuest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (questId) => voidDuplicatePoolQuest(questId),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
 }
 
 export function useStartQuest() {

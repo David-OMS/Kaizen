@@ -1,9 +1,14 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TaskPoolCard } from '@/components/quest/TaskPoolCard'
+import { TaskPoolCompletedSection } from '@/components/quest/TaskPoolCompletedSection'
+import { useMarkTaskPoolComplete } from '@/hooks/useTaskPoolMutations'
 import { useTaskPool } from '@/hooks/useTaskPool'
+import { partitionTaskPool } from '@/utils/taskPoolComplete'
 
 export function TaskPoolList() {
   const taskPoolQuery = useTaskPool()
+  const markComplete = useMarkTaskPoolComplete()
 
   if (taskPoolQuery.isLoading) {
     return <Skeleton className="h-40 rounded-sm border border-[#1E2530] bg-[#12161D]" />
@@ -17,8 +22,9 @@ export function TaskPoolList() {
     )
   }
 
-  const tasks = taskPoolQuery.data
-  if (!tasks.length) {
+  const { active, completed } = partitionTaskPool(taskPoolQuery.data)
+
+  if (!active.length && !completed.length) {
     return (
       <Card className="rounded-sm border border-[#1E2530] bg-[#12161D]/90 py-4">
         <CardContent className="px-4 text-sm text-zinc-300">Task pool is empty. Add your first task.</CardContent>
@@ -27,30 +33,23 @@ export function TaskPoolList() {
   }
 
   return (
-    <div className="space-y-3">
-      {tasks.map((task) => (
-        <Card key={task.id} className="rounded-sm border border-[#1E2530] bg-[#12161D]/90 py-4">
-          <CardHeader className="px-4 pb-2">
-            <div className="flex items-start justify-between gap-3">
-              <CardTitle className="text-sm tracking-[0.12em] text-[#7DD3FC] uppercase italic">
-                {task.title}
-              </CardTitle>
-              <span className="rounded-sm border border-[#1E2530] px-2 py-1 text-[10px] text-zinc-200 uppercase">
-                {task.quest_kind || 'task'}
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2 px-4 text-sm text-zinc-300">
-            <p>Context: {task.context_note || '-'}</p>
-            <p>Assignments: {task.times_assigned ?? 0}</p>
-            {task.type === 'weekly_eligible' && task.repeat_policy === 'always' ? (
-              <p>
-                Focus: <span className="font-mono">{task.focus_active === false ? 'Parked' : 'Active'}</span>
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-4">
+      {active.length ? (
+        <div className="space-y-3">
+          {active.map((task) => (
+            <TaskPoolCard
+              key={task.id}
+              task={task}
+              isFinishPending={markComplete.isPending}
+              finishError={markComplete.error?.message}
+              onFinishTrack={(taskId) => markComplete.mutate(taskId)}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-500">No open tasks in the pool.</p>
+      )}
+      <TaskPoolCompletedSection tasks={completed} />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { QUEST_REWARD_VISIBILITY, QUEST_SOURCE_TYPES } from '@/constants/questEngine'
+import { isSundayMentalQuest } from '@/utils/sundayProvision'
 import { QUEST_KIND, QUEST_STATUS } from '@/constants/questLifecycle'
 import { AttemptFailQuestForm } from '@/components/quest/AttemptFailQuestForm'
 import { IncompleteQuestForm } from '@/components/quest/IncompleteQuestForm'
@@ -11,17 +12,21 @@ import { BattleIntelModal } from '@/components/quest/BattleIntelModal'
 export function QuestCard({
   quest,
   profile,
+  poolAlreadyComplete = false,
   onComplete,
   onBattleIntel,
   onAttemptFail,
   onIncomplete,
+  onVoidDuplicate,
   isBattleIntelPending,
   battleIntelError,
   isResolving,
   isIncompletePending,
   isAttemptFailPending,
+  isVoidDuplicatePending,
   incompleteError,
   attemptFailError,
+  voidDuplicateError,
 }) {
   const [showIncomplete, setShowIncomplete] = useState(false)
   const [showAttemptFail, setShowAttemptFail] = useState(false)
@@ -36,6 +41,8 @@ export function QuestCard({
     (Number(quest.xp_reward || 0) > 0 || Number(quest.xp_penalty || 0) > 0)
   const isLearning = quest.quest_kind === QUEST_KIND.LEARNING
   const isRecall = Boolean(quest.is_micro || quest.recall_kind)
+  const isSundayMental = isSundayMentalQuest(quest)
+  const journalPrompt = quest.analysis_snapshot?.journal_prompt
   const showForms = showIncomplete || showAttemptFail
 
   return (
@@ -63,7 +70,12 @@ export function QuestCard({
             {quest.source_type === QUEST_SOURCE_TYPES.CURIOSITY ? (
               <span className="text-[#A855F7]">Curiosity</span>
             ) : null}
+            {isSundayMental ? <span className="text-[#A855F7]">Sunday</span> : null}
           </div>
+
+          {isSundayMental && journalPrompt ? (
+            <p className="text-sm leading-relaxed text-zinc-300">{journalPrompt}</p>
+          ) : null}
 
           {hasXpEconomy ? (
             <>
@@ -92,7 +104,27 @@ export function QuestCard({
             </Button>
           ) : null}
 
-          {isActive && !showForms ? (
+          {isActive && poolAlreadyComplete ? (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500">
+                This pool task is already marked complete. Remove this duplicate without XP.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-[10px] text-zinc-400"
+                disabled={isVoidDuplicatePending}
+                onClick={() => onVoidDuplicate?.()}
+              >
+                {isVoidDuplicatePending ? 'Removing…' : 'Remove duplicate'}
+              </Button>
+              {voidDuplicateError ? (
+                <p className="text-xs text-[#FF4B4B]">{voidDuplicateError}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {isActive && !poolAlreadyComplete && !showForms ? (
             <div className="flex flex-col gap-2">
               <Button
                 type="button"

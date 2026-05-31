@@ -1,6 +1,6 @@
 import { getAuthenticatedUserId, supabase } from '@/services/supabase'
 import { classifyAndPersistTaskPool } from '@/services/taskPoolClassifyService'
-import { QUEST_KIND } from '@/constants/questLifecycle'
+import { QUEST_KIND, TASK_POOL_OUTCOME } from '@/constants/questLifecycle'
 
 export async function getTaskPool() {
   const { data, error } = await supabase
@@ -94,4 +94,41 @@ export async function updateTaskPoolOutcome(taskId, { lastOutcome, incrementDrop
   }
   const { error } = await supabase.from('task_pool').update(patch).eq('id', taskId)
   if (error) throw error
+}
+
+/** Close a long weekly track manually — no XP. One-shots must be completed on the quest board. */
+export async function markTaskPoolTrackComplete(taskId) {
+  const userId = await getAuthenticatedUserId()
+  const { data: row, error: readErr } = await supabase
+    .from('task_pool')
+    .select('*')
+    .eq('id', taskId)
+    .eq('user_id', userId)
+    .single()
+
+  if (readErr) throw readErr
+  if (row.last_outcome === TASK_POOL_OUTCOME.COMPLETED) {
+    throw new Error('This task is already marked complete.')
+  }
+  const isLongTrack = row.type === 'weekly_eligible' && row.repeat_policy === 'always'
+  if (!isLongTrack) {
+    throw new Error('One-shot tasks must be completed on your daily quest board to earn XP.')
+  }
+  if (Number(row.times_assigned || 0) < 1) {
+    throw new Error('This track has not been assigned yet — nothing to close.')
+  }
+
+  const { data, error } = await supabase
+    .from('task_pool')
+    .update({
+      last_outcome: TASK_POOL_OUTCOME.COMPLETED,
+      focus_active: false,
+    })
+    .eq('id', taskId)
+    .eq('user_id', userId)
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return data
 }

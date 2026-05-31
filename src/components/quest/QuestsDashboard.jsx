@@ -11,6 +11,7 @@ import {
   useSubmitBattleIntel,
   useSubmitQuestAttemptFail,
   useSubmitQuestIncomplete,
+  useVoidDuplicatePoolQuest,
 } from '@/hooks/useQuestLifecycleMutations'
 import { useSyncStreakOnLoad } from '@/hooks/useQuestMutations'
 import { useProfile } from '@/hooks/useProfile'
@@ -24,6 +25,7 @@ export function QuestsDashboard() {
   const incomplete = useSubmitQuestIncomplete()
   const attemptFail = useSubmitQuestAttemptFail()
   const battleIntel = useSubmitBattleIntel()
+  const voidDuplicate = useVoidDuplicatePoolQuest()
   const syncStreak = useSyncStreakOnLoad()
 
   useEffect(() => {
@@ -76,7 +78,10 @@ export function QuestsDashboard() {
             onAttemptFail={(quest, reason) =>
               attemptFail.mutateAsync({ quest, reason, profile: profileQuery.data })
             }
+            onVoidDuplicate={(quest) => voidDuplicate.mutateAsync(quest.id)}
             isResolving={resolveQuest.isPending}
+            isVoidDuplicatePending={voidDuplicate.isPending}
+            voidDuplicateError={voidDuplicate.error?.message}
             isIncompletePending={incomplete.isPending}
             isAttemptFailPending={attemptFail.isPending}
             isBattleIntelPending={battleIntel.isPending}

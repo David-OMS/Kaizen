@@ -5,6 +5,7 @@ import { getTaskPool, patchTaskPoolEntry } from '@/services/taskPoolService'
 import { loadPointsForQuest } from '@/utils/questBudget'
 import { QUEST_KIND, QUEST_STATUS } from '@/constants/questLifecycle'
 import { computeWeeklyDebt, compareWeeklyTaskDebt } from '@/utils/weeklyDebtRank'
+import { isTaskPoolFullyComplete } from '@/utils/taskPoolComplete'
 
 const COUNTABLE_STATUSES = new Set([
   QUEST_STATUS.ACTIVE,
@@ -42,6 +43,7 @@ async function ensureWeeklyTargetDays(task) {
 }
 
 function shouldSkipForRepeatPolicy(task) {
+  if (isTaskPoolFullyComplete(task)) return true
   return task.repeat_policy === 'until_completed' && task.last_outcome === 'completed'
 }
 

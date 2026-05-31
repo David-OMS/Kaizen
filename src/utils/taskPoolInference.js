@@ -1,14 +1,17 @@
 import { QUEST_KIND } from '@/constants/questLifecycle'
 import { mergeHunterProfileContext } from '@/utils/hunterProfile'
 
-const LEARN_HINTS = /\b(learn|study|course|practice|language|french|design|postgres|dsa|exam)\b/i
+/** Multi-week tracks only — not one-off learning dumps. */
+const LONG_TRACK_HINTS =
+  /\b(french|language|fluency|udemy|course|system design|bootcamp|consistently|every week|long.?term|months?|daily practice)\b/i
 
 export function inferTaskPoolFields({ title, contextNote, questKind, mandatory, linkedClientId, profile }) {
   const text = `${title} ${contextNote || ''}`.toLowerCase()
   const vision = mergeHunterProfileContext(profile).toLowerCase()
 
   const isLearning = questKind === QUEST_KIND.LEARNING
-  const longTrack = isLearning || LEARN_HINTS.test(text)
+  const longTrack =
+    !mandatory && !linkedClientId && isLearning && (LONG_TRACK_HINTS.test(text) || LONG_TRACK_HINTS.test(vision))
 
   let type = 'daily_eligible'
   let repeatPolicy = 'until_completed'

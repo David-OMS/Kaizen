@@ -6,6 +6,7 @@ import { getQuestsForAssignedDate } from '@/services/questService'
 import { getTaskPool } from '@/services/taskPoolService'
 import { loadPointsForQuest } from '@/utils/questBudget'
 import { invokeAnalyzeQuest } from '@/services/aiAnalysisService'
+import { isTaskPoolFullyComplete } from '@/utils/taskPoolComplete'
 
 async function classifyPoolTask(task) {
   let difficulty = 'medium'
@@ -31,6 +32,7 @@ export async function buildDailyCarryovers(yesterdayYmd) {
   for (const quest of yesterdayQuests) {
     if (isSuccessfullyDone(quest)) continue
     const poolRow = quest.task_pool_id ? poolById[quest.task_pool_id] : null
+    if (poolRow && isTaskPoolFullyComplete(poolRow)) continue
     const mandatory = poolRow?.mandatory ?? false
     const mustRecycle =
       mandatory ||
@@ -66,7 +68,7 @@ export async function buildPoolCandidatesForDaily(eligibleTypes, excludePoolIds 
   for (const task of pool) {
     if (!eligibleTypes.includes(task.type)) continue
     if (excludePoolIds.has(task.id)) continue
-    if (task.repeat_policy === 'until_completed' && task.last_outcome === 'completed') continue
+    if (isTaskPoolFullyComplete(task)) continue
     const meta = await classifyPoolTask(task)
     candidates.push({
       id: task.id,

@@ -1,24 +1,46 @@
 import { useMemo, useState } from 'react'
-import { format } from 'date-fns'
 import { DailyQuestBriefingModal } from '@/components/quest/DailyQuestBriefingModal'
 import { getDailyBriefingStorageKey } from '@/constants/systemQuest'
+import { QUEST_STATUS } from '@/constants/questLifecycle'
 import { useAuthSession } from '@/hooks/useAuthSession'
+import { useProfile } from '@/hooks/useProfile'
 import { useDailyQuests } from '@/hooks/useQuests'
+import { getProfileTimezone, getTodayYmdInTimezone } from '@/utils/questTimezone'
+
+const OPEN = [
+  QUEST_STATUS.ACTIVE,
+  QUEST_STATUS.EXTENDED,
+  QUEST_STATUS.INCOMPLETE,
+  QUEST_STATUS.ASSESSMENT_PENDING,
+]
 
 export function DailyQuestBriefingGate() {
   const { user } = useAuthSession()
+  const profileQuery = useProfile()
   const dailyQuery = useDailyQuests()
   const [lsVersion, setLsVersion] = useState(0)
 
-  const ymd = format(new Date(), 'yyyy-MM-dd')
-  const storageKey = user?.id ? getDailyBriefingStorageKey(user.id, ymd) : null
+  const ymd = profileQuery.data
+    ? getTodayYmdInTimezone(getProfileTimezone(profileQuery.data))
+    : null
+  const storageKey = user?.id && ymd ? getDailyBriefingStorageKey(user.id, ymd) : null
 
   const dismissed = useMemo(() => {
     if (!storageKey || typeof window === 'undefined') return false
     return Boolean(localStorage.getItem(storageKey))
   }, [storageKey, lsVersion])
 
-  const ready = Boolean(user?.id) && !dailyQuery.isLoading && !dailyQuery.isError
+  const activeCount = useMemo(
+    () => (dailyQuery.data ?? []).filter((q) => OPEN.includes(q.status)).length,
+    [dailyQuery.data],
+  )
+
+  const ready =
+    Boolean(user?.id) &&
+    Boolean(profileQuery.data) &&
+    !dailyQuery.isLoading &&
+    !dailyQuery.isError &&
+    activeCount > 0
 
   const open = ready && !dismissed
 
