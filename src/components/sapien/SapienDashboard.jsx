@@ -62,9 +62,9 @@ export function SapienDashboard() {
         )}
       </div>
 
-      <SapienRewardsPanel rewards={rewardsQuery.data} />
-
       <SapienHabitForm />
+
+      <SapienRewardsPanel rewards={rewardsQuery.data} />
     </section>
   )
 }
