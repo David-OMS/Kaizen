@@ -10,6 +10,7 @@ export function DailyBrainTeaserGate() {
   const { user } = useAuthSession()
   const profileQuery = useProfile()
   const [lsVersion, setLsVersion] = useState(0)
+  const [reopen, setReopen] = useState(false)
   const profile = profileQuery.data
   const ymd = profile ? getTodayYmdInTimezone(getProfileTimezone(profile)) : null
   const storageKey = user?.id && ymd ? getBrainTeaserDismissKey(user.id, ymd) : null
@@ -44,14 +45,33 @@ export function DailyBrainTeaserGate() {
     hasBrainTeaserForToday(profile, ymd) &&
     !profileQuery.isLoading
 
-  const open = ready && !dismissed
+  const autoOpen = ready && !dismissed
+  const open = autoOpen || (ready && reopen)
 
   const onClose = () => {
+    if (reopen) {
+      setReopen(false)
+      return
+    }
     if (storageKey) {
       localStorage.setItem(storageKey, '1')
       setLsVersion((v) => v + 1)
     }
   }
 
-  return <DailyBrainTeaserModal open={open} fact={fact} onClose={onClose} />
+  return (
+    <>
+      {ready && dismissed && !open ? (
+        <button
+          type="button"
+          onClick={() => setReopen(true)}
+          className="fixed bottom-20 right-3 z-40 max-w-[11rem] rounded-sm border border-[#A855F7]/40 bg-[#12161D]/95 px-3 py-2 text-left shadow-lg backdrop-blur-sm transition hover:border-[#A855F7]/70"
+        >
+          <span className="block text-[10px] uppercase tracking-[0.2em] text-[#A855F7]">Cipher drop</span>
+          <span className="mt-0.5 block text-[11px] text-zinc-400">Tap to read today&apos;s oddment</span>
+        </button>
+      ) : null}
+      <DailyBrainTeaserModal open={open} fact={fact} onClose={onClose} dismissed={dismissed || reopen} />
+    </>
+  )
 }

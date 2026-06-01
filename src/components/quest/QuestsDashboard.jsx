@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CipherDropBanner } from '@/components/quest/CipherDropBanner'
 import { CuriosityBanner } from '@/components/quest/CuriosityBanner'
 import { WeeklyQuotaPanel } from '@/components/quest/WeeklyQuotaPanel'
 import { QuestBoard } from '@/components/quest/QuestBoard'
@@ -67,6 +68,7 @@ export function QuestsDashboard() {
           </Button>
         </div>
       ) : null}
+      <CipherDropBanner profile={profileQuery.data} />
       <CuriosityBanner profile={profileQuery.data} />
       <WeeklyQuotaPanel profile={profileQuery.data} />
       <QuestSectionTabs activeSection={activeSection} onSectionChange={setActiveSection} />

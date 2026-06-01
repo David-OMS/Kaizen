@@ -108,7 +108,28 @@ export function QuestCard({
             </Button>
           ) : null}
 
-          {isActive && poolAlreadyComplete ? (
+          {isActive && isDuplicateCopy ? (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500">
+                Duplicate assignment — you already have this pool task today. Remove the extra copy (keeps the
+                oldest).
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-[10px] text-zinc-400"
+                disabled={isDismissDuplicatePending}
+                onClick={() => onDismissDuplicate?.()}
+              >
+                {isDismissDuplicatePending ? 'Removing…' : 'Remove duplicate'}
+              </Button>
+              {dismissDuplicateError ? (
+                <p className="text-xs text-[#FF4B4B]">{dismissDuplicateError}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {isActive && poolAlreadyComplete && !isDuplicateCopy ? (
             <div className="space-y-2">
               <p className="text-xs text-zinc-500">
                 This pool task is already marked complete. Remove this duplicate without XP.
