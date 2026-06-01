@@ -30,13 +30,27 @@ Deno.serve(async (req) => {
   const key = Deno.env.get('OPENAI_API_KEY')
   if (!key || remaining < 1) return json({ suggestions: [] })
 
+  const mode = String(body.mode ?? 'pack')
+  const isExtra = mode === 'extra_single'
+  const tier = String(body.remainderTier ?? '')
+  const localHour = body.localHour != null ? Number(body.localHour) : null
+  const hoursLeft = body.hoursUntilMidnight != null ? Number(body.hoursUntilMidnight) : null
+  const remainderHint = String(body.remainderHint ?? '')
+
+  const packRules = `Rules: total loadPoints MUST NOT exceed ${remaining}. Prefer ~1-3 tasks. Align with hunter profile (vision + current goals), skills, and pool. Only invent tasks that fit remaining budget. Pool items optional.`
+  const extraRules = `MODE: extra_single — hunter finished main dailies and wants ONE more task for what's left today.
+Rules: return exactly 1 suggestion in the array. loadPoints MUST NOT exceed ${remaining}. difficulty must fit remainder tier "${tier}" (${remainderHint}).
+Local hour: ${localHour ?? 'unknown'}; ~${hoursLeft ?? '?'} hours until midnight in hunter TZ.
+Prefer an unassigned pool item (taskPoolId) if it fits; otherwise invent a concrete execution task from profile + skills — not generic motivation.
+Do NOT duplicate titles already assigned today.`
+
   const prompt = `You assign daily solo-operator quests. Return JSON: { "suggestions": [ { "title": string, "difficulty": "easy"|"medium"|"hard"|"legendary", "questKind": "execution"|"learning", "category": string, "loadPoints": number, "taskPoolId": string|null, "context": string } ] }
-Rules: total loadPoints MUST NOT exceed ${remaining}. Prefer ~1-3 tasks. Align with hunter profile (vision + current goals), skills, and pool. Only invent tasks that fit remaining budget. Pool items optional.
+${isExtra ? extraRules : packRules}
 
 Hunter profile: ${JSON.stringify(body.hunterVision ?? '')}
 Skills: ${JSON.stringify(body.skills ?? [])}
-Pool: ${JSON.stringify(body.pool ?? [])}
-Carryovers already assigned: ${JSON.stringify(body.carryovers ?? [])}`
+Pool (unassigned today): ${JSON.stringify(body.pool ?? [])}
+Already assigned today: ${JSON.stringify(body.carryovers ?? [])}`
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {

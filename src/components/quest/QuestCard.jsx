@@ -68,6 +68,7 @@ export function QuestCard({
             {isRecall ? <span className="text-[#A855F7]">Recall</span> : null}
             {isLearning ? <span className="text-[#7DD3FC]">Learning</span> : null}
             {quest.load_points ? <span>{quest.load_points} load</span> : null}
+            {quest.analysis_snapshot?.extra_daily ? <span className="text-[#7DD3FC]">Extra</span> : null}
             {quest.source_type === QUEST_SOURCE_TYPES.AI_GENERATED ? (
               <span>AI</span>
             ) : null}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CipherDropBanner } from '@/components/quest/CipherDropBanner'
+import { ExtraDailyQuestPanel } from '@/components/quest/ExtraDailyQuestPanel'
 import { CuriosityBanner } from '@/components/quest/CuriosityBanner'
 import { WeeklyQuotaPanel } from '@/components/quest/WeeklyQuotaPanel'
 import { QuestBoard } from '@/components/quest/QuestBoard'
@@ -76,6 +77,7 @@ export function QuestsDashboard() {
       {activeSection === 'task_pool' ? <TaskPoolSection raids={raidsQuery.data ?? []} /> : null}
       {activeSection === 'daily' ? (
         <>
+          <ExtraDailyQuestPanel profile={profileQuery.data} />
           <RecallGate
             profile={profileQuery.data}
             onResolveQuest={handleResolveQuest}

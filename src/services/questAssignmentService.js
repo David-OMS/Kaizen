@@ -48,7 +48,7 @@ async function buildAiSuggestions({ profile, skills, pool, carryovers, remaining
   }
 }
 
-function entryFromPacked(item, assignedDate, period) {
+export function entryFromPacked(item, assignedDate, period) {
   const xp =
     item.questKind === QUEST_KIND.LEARNING
       ? { reward: 0, penalty: 0 }
