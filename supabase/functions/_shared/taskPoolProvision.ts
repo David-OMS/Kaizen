@@ -95,9 +95,14 @@ export async function syncWeeklyQuotaWeeksAdmin(
   for (const task of rows ?? []) {
     if (!isWeeklyQuotaTask(task)) continue
     if (task.weekly_quota_week_start === monday) continue
-    await supabase
+    const { error } = await supabase
       .from('task_pool')
       .update({ weekly_quota_week_start: monday, weekly_quota_progress: 0 })
       .eq('id', task.id)
+    if (error) {
+      throw new Error(
+        `${error.code ?? 'db'} | ${error.message} | Run supabase/migrations/20260608_task_pool_projects_and_quotas.sql`,
+      )
+    }
   }
 }

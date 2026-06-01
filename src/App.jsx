@@ -1,3 +1,4 @@
+import { DailyBrainTeaserGate } from '@/components/home/DailyBrainTeaserGate'
 import { DailyQuestBriefingGate } from '@/components/quest/DailyQuestBriefingGate'
 import { PushNotificationSetup } from '@/components/push/PushNotificationSetup'
 import { PwaUpdatePrompt } from '@/components/pwa/PwaUpdatePrompt'
@@ -9,6 +10,7 @@ function App() {
     <>
       <AppRouter />
       <PwaUpdatePrompt />
+      <DailyBrainTeaserGate />
       <DailyQuestBriefingGate />
       <PushNotificationSetup />
       <SurpriseAchievementGate />

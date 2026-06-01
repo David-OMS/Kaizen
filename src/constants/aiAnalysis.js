@@ -9,4 +9,5 @@ export const AI_EDGE_FUNCTIONS = {
   PICK_CURIOSITY: 'pick-curiosity-themes',
   PICK_SUNDAY_MENTAL: 'pick-sunday-mental-quest',
   DECOMPOSE_TASK_PROJECT: 'decompose-task-project',
+  PICK_BRAIN_TEASER: 'pick-daily-brain-teaser',
 }

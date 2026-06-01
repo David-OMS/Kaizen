@@ -13,6 +13,7 @@ import {
   hasCompletedDailyOnYmd,
   updateQuestRow,
   updateQuestStatus,
+  dismissDuplicateDailyQuest,
   voidDuplicatePoolQuest,
 } from '@/services/questService'
 import { bumpDailyStreak } from '@/services/profileService'
@@ -148,6 +149,14 @@ export function useVoidDuplicatePoolQuest() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (questId) => voidDuplicatePoolQuest(questId),
+    onSuccess: () => invalidateQuests(queryClient),
+  })
+}
+
+export function useDismissDuplicateDailyQuest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (questId) => dismissDuplicateDailyQuest(questId),
     onSuccess: () => invalidateQuests(queryClient),
   })
 }

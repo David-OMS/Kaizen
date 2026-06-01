@@ -18,15 +18,19 @@ export function QuestCard({
   onAttemptFail,
   onIncomplete,
   onVoidDuplicate,
+  onDismissDuplicate,
+  isDuplicateCopy = false,
   isBattleIntelPending,
   battleIntelError,
   isResolving,
   isIncompletePending,
   isAttemptFailPending,
   isVoidDuplicatePending,
+  isDismissDuplicatePending,
   incompleteError,
   attemptFailError,
   voidDuplicateError,
+  dismissDuplicateError,
 }) {
   const [showIncomplete, setShowIncomplete] = useState(false)
   const [showAttemptFail, setShowAttemptFail] = useState(false)
@@ -124,7 +128,7 @@ export function QuestCard({
             </div>
           ) : null}
 
-          {isActive && !poolAlreadyComplete && !showForms ? (
+          {isActive && !isDuplicateCopy && !poolAlreadyComplete && !showForms ? (
             <div className="flex flex-col gap-2">
               <Button
                 type="button"

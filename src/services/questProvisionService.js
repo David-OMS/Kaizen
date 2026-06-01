@@ -1,11 +1,7 @@
 import { QUEST_PERIODS } from '@/constants/questOptions'
 import { getProfile } from '@/services/profileService'
 import { getSkills } from '@/services/skillsService'
-import {
-  getActiveDailyQuestsForToday,
-  getQuestsForAssignedDate,
-  markDailyProvisionComplete,
-} from '@/services/questService'
+import { getQuestsForAssignedDate, markDailyProvisionComplete } from '@/services/questService'
 import { closeQuestDay } from '@/services/questCloseDayService'
 import { buildDailyCarryovers, buildPoolCandidatesForDaily } from '@/services/questCarryoverService'
 import { assignDailyQuests } from '@/services/questAssignmentService'
@@ -34,20 +30,17 @@ import {
   isProvisionWindowOpen,
 } from '@/utils/questTimezone'
 
+/**
+ * After 05:00 in quest_timezone: provision if there are no daily rows for today.
+ * Ignores last_daily_provision_at so a failed cron (or stamp with zero quests) still recovers on app open.
+ */
 export async function needsDailyProvision(profile) {
   const tz = getProfileTimezone(profile)
+  if (!isProvisionWindowOpen(tz)) return false
+
   const today = getTodayYmdInTimezone(tz)
-  const existing = await getActiveDailyQuestsForToday(today)
-  if (existing.length) return false
-
   const allToday = await getQuestsForAssignedDate(today, QUEST_PERIODS.DAILY)
-  if (allToday.length) return false
-
-  const last = profile.last_daily_provision_at
-  if (!last) return isProvisionWindowOpen(tz)
-
-  const lastDay = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(last))
-  return lastDay !== today && isProvisionWindowOpen(tz)
+  return allToday.length === 0
 }
 
 export async function runDailyProvision({ force = false } = {}) {

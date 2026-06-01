@@ -4,7 +4,8 @@ import { QUEST_PERIODS } from '@/constants/questOptions'
 import { QUEST_KIND } from '@/constants/questLifecycle'
 import { invokeAssignDailyQuests } from '@/services/questAiService'
 import { invokeAnalyzeQuest } from '@/services/aiAnalysisService'
-import { createQuestEntries } from '@/services/questService'
+import { createQuestEntries, getTaskPoolIdsAssignedOnDate } from '@/services/questService'
+import { filterPackedByUsedPoolIds } from '@/utils/questDedupe'
 import { incrementTaskAssignmentCount, getTaskPool } from '@/services/taskPoolService'
 import { packQuestCandidates } from '@/utils/questAssignment'
 import { loadPointsForQuest } from '@/utils/questBudget'
@@ -114,15 +115,18 @@ export async function assignDailyQuests({
     totalBudget,
   })
 
-  if (!packed.length) return []
+  const alreadyAssigned = await getTaskPoolIdsAssignedOnDate(todayYmd, QUEST_PERIODS.DAILY)
+  const toCreate = filterPackedByUsedPoolIds(packed, alreadyAssigned)
 
-  const entries = packed.map((item) => entryFromPacked(item, todayYmd, QUEST_PERIODS.DAILY))
+  if (!toCreate.length) return []
+
+  const entries = toCreate.map((item) => entryFromPacked(item, todayYmd, QUEST_PERIODS.DAILY))
   const created = await createQuestEntries(entries)
 
   const poolRows = await getTaskPool()
   const countById = Object.fromEntries(poolRows.map((t) => [t.id, t.times_assigned]))
 
-  for (const item of packed) {
+  for (const item of toCreate) {
     if (item.taskPoolId) {
       await incrementTaskAssignmentCount(item.taskPoolId, countById[item.taskPoolId])
     }

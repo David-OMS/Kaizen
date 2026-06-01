@@ -7,6 +7,7 @@ import { useProfile } from '@/hooks/useProfile'
 import { useTaskPool } from '@/hooks/useTaskPool'
 import { isTaskPoolFullyComplete } from '@/utils/taskPoolComplete'
 import { QuestCard } from '@/components/quest/QuestCard'
+import { duplicatePoolMetaForQuests } from '@/utils/questDedupe'
 
 export function QuestBoard({
   period,
@@ -15,8 +16,11 @@ export function QuestBoard({
   onIncomplete,
   onAttemptFail,
   onVoidDuplicate,
+  onDismissDuplicate,
   isVoidDuplicatePending,
+  isDismissDuplicatePending,
   voidDuplicateError,
+  dismissDuplicateError,
   isBattleIntelPending,
   battleIntelError,
   isResolving,
@@ -52,6 +56,7 @@ export function QuestBoard({
   )
   const doneQuests = (questsQuery.data ?? []).filter((q) => q.status === QUEST_STATUS.COMPLETED)
   const quests = [...openQuests, ...doneQuests]
+  const { duplicateIds } = duplicatePoolMetaForQuests(quests)
 
   return (
     <section className="space-y-4">
@@ -67,10 +72,14 @@ export function QuestBoard({
               poolAlreadyComplete={
                 quest.task_pool_id ? isTaskPoolFullyComplete(poolById[quest.task_pool_id]) : false
               }
+              isDuplicateCopy={duplicateIds.has(quest.id)}
               isResolving={isResolving}
               isVoidDuplicatePending={isVoidDuplicatePending}
+              isDismissDuplicatePending={isDismissDuplicatePending}
               voidDuplicateError={voidDuplicateError}
+              dismissDuplicateError={dismissDuplicateError}
               onVoidDuplicate={() => onVoidDuplicate?.(quest)}
+              onDismissDuplicate={() => onDismissDuplicate?.(quest)}
               isIncompletePending={isIncompletePending}
               onComplete={() => onResolveQuest(quest, 'completed')}
               onBattleIntel={(intel) => onBattleIntel?.(quest, intel)}

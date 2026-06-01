@@ -8,6 +8,8 @@ import {
   shouldIncludePoolTaskForDaily,
   syncWeeklyQuotaWeeksAdmin,
 } from './taskPoolProvision.ts'
+import { filterPackedByUsedPoolIds } from './questDedupe.ts'
+import { provisionDailyBrainTeaser } from './brainTeaserProvision.ts'
 
 const TZ_DEFAULT = 'Africa/Lagos'
 const OPEN = ['active', 'extended', 'incomplete', 'assessment_pending']
@@ -363,6 +365,18 @@ export async function runDailyProvisionForUser(
     budget,
   )
 
+  const { data: assignedPoolRows } = await supabase
+    .from('quests')
+    .select('task_pool_id')
+    .eq('user_id', userId)
+    .eq('period', 'daily')
+    .eq('assigned_date', today)
+    .not('task_pool_id', 'is', null)
+
+  const alreadyPoolIds = [
+    ...new Set((assignedPoolRows ?? []).map((r) => r.task_pool_id).filter(Boolean) as string[]),
+  ]
+
   const dailyReward = 30
   const dailyPenalty = 11
   type Packed = {
@@ -381,7 +395,9 @@ export async function runDailyProvisionForUser(
     }
   }
 
-  const inserts = (packed as Packed[]).map((item) => ({
+  const toInsert = filterPackedByUsedPoolIds(packed as Packed[], alreadyPoolIds)
+
+  const inserts = toInsert.map((item) => ({
     user_id: userId,
     task_pool_id: item.taskPoolId ?? null,
     title: item.title,
@@ -416,7 +432,7 @@ export async function runDailyProvisionForUser(
   if (inserts.length) {
     const { error: insErr } = await supabase.from('quests').insert(inserts)
     if (insErr) throw formatDbError(insErr)
-    for (const item of packed as Packed[]) {
+    for (const item of toInsert) {
       const pid = item.taskPoolId
       if (!pid) continue
       const row = poolById[pid]
@@ -435,7 +451,7 @@ export async function runDailyProvisionForUser(
     userId,
     profileAfterCuriosity,
     today,
-    packed as Packed[],
+    toInsert,
   )
 
   const recallCount = await provisionRecallQuestsForToday(supabase, userId, today)
@@ -482,6 +498,14 @@ export async function runDailyProvisionForUser(
     }
   }
 
+  const profileWithTeaser = await provisionDailyBrainTeaser(
+    supabase,
+    userId,
+    profileAfterCuriosity,
+    today,
+    opts,
+  )
+
   const { error: rpcErr } = await supabase.rpc('mark_daily_provision', { p_user_id: userId })
   if (rpcErr) {
     await supabase
@@ -491,12 +515,13 @@ export async function runDailyProvisionForUser(
   }
 
   const weeklyPoolIds = new Set(weeklyCandidates.map((w) => w.taskPoolId))
-  const weeklyCreatedCount = (packed as Packed[]).filter((p) => p.taskPoolId && weeklyPoolIds.has(p.taskPoolId)).length
+  const weeklyCreatedCount = toInsert.filter((p) => p.taskPoolId && weeklyPoolIds.has(p.taskPoolId)).length
 
   return {
     skipped: false,
     today,
     dailyCount: inserts.length,
+    dedupedSkipped: (packed as Packed[]).length - toInsert.length,
     weeklyCount: weeklyCreatedCount,
     curiosityCount,
     recallCount,

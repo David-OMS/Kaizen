@@ -46,6 +46,18 @@ export async function getQuestsForAssignedDate(assignedDate, period) {
   return data ?? []
 }
 
+export async function getTaskPoolIdsAssignedOnDate(assignedDate, period = QUEST_PERIODS.DAILY) {
+  const { data, error } = await supabase
+    .from('quests')
+    .select('task_pool_id')
+    .eq('period', period)
+    .eq('assigned_date', assignedDate)
+    .not('task_pool_id', 'is', null)
+
+  if (error) throw error
+  return [...new Set((data ?? []).map((r) => r.task_pool_id).filter(Boolean))]
+}
+
 function getCurrentWindow(period) {
   if (period === 'daily') {
     const today = new Date()
@@ -162,6 +174,43 @@ const OPEN_QUEST_STATUSES = [
   QUEST_STATUS.INCOMPLETE,
   QUEST_STATUS.ASSESSMENT_PENDING,
 ]
+
+/** Remove an extra copy of the same pool task on the same day (keeps oldest). No XP. */
+export async function dismissDuplicateDailyQuest(questId) {
+  const userId = await getAuthenticatedUserId()
+  const { data: quest, error: questErr } = await supabase
+    .from('quests')
+    .select('id, task_pool_id, assigned_date, period, status, created_at')
+    .eq('id', questId)
+    .eq('user_id', userId)
+    .single()
+
+  if (questErr) throw questErr
+  if (!quest.task_pool_id) throw new Error('Only pool-linked dailies can be removed as duplicates.')
+  if (!OPEN_QUEST_STATUSES.includes(quest.status)) {
+    throw new Error('Quest is not open.')
+  }
+
+  const { data: siblings, error: sibErr } = await supabase
+    .from('quests')
+    .select('id, created_at')
+    .eq('user_id', userId)
+    .eq('task_pool_id', quest.task_pool_id)
+    .eq('assigned_date', quest.assigned_date)
+    .eq('period', quest.period)
+    .order('created_at', { ascending: true })
+
+  if (sibErr) throw sibErr
+  if ((siblings ?? []).length < 2) throw new Error('This is not a duplicate copy.')
+
+  const keeperId = siblings[0].id
+  if (questId === keeperId) {
+    throw new Error('This is the original assignment — remove a newer duplicate copy instead.')
+  }
+
+  const { error: deleteErr } = await supabase.from('quests').delete().eq('id', questId).eq('user_id', userId)
+  if (deleteErr) throw deleteErr
+}
 
 /** Drop a mistaken re-assignment when the pool track is already finished — no XP, no quest_log. */
 export async function voidDuplicatePoolQuest(questId) {

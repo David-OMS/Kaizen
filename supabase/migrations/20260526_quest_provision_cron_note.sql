@@ -47,3 +47,10 @@ select cron.schedule(
 -- STEP F — Open app: quests should already be on the board. Briefing modal only; no generation.
 
 -- Cron time: 0 4 * * * UTC = 05:00 Africa/Lagos
+--
+-- TROUBLESHOOTING — cron.job_run_details status "succeeded" only means pg_net queued HTTP.
+-- Check Edge logs for provision-daily-quests: must be POST | 200, not 401.
+-- If 401: Bearer in THIS job does not match Dashboard → API → service_role (copy fresh key
+-- from the same place as quest-push-daily-ready, which must return 200).
+-- After fixing, run STEP E once; then optional force for your user:
+--   body := '{"userId":"YOUR_UUID","force":true}'::jsonb

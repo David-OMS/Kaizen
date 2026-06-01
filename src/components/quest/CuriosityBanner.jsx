@@ -52,9 +52,13 @@ export function CuriosityBanner({ profile }) {
             onClick={() => refreshThemes.mutate(profile)}
             disabled={refreshThemes.isPending}
           >
-            {refreshThemes.isPending ? '…' : 'Reroll'}
+            {refreshThemes.isPending ? '…' : 'Reroll themes'}
           </Button>
         </div>
+        <p className="text-[11px] text-zinc-500">
+          Broadening lens — countries, professions, and books outside your task pool. Reroll for a new
+          random week (book / country / profession).
+        </p>
         <p className="text-sm text-white">
           {state.book ? (
             <>

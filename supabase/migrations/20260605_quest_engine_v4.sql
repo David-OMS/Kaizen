@@ -47,3 +47,4 @@ create policy "quest_recall_schedule_owner" on public.quest_recall_schedule
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 grant select, insert, update, delete on table public.quest_recall_schedule to authenticated;
+grant select, insert, update, delete on table public.quest_recall_schedule to service_role;

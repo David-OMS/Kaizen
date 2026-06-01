@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
         code: err?.code ?? null,
         details: err?.details ?? null,
         dbHint:
-          'If code is 42703 or mentions a column/constraint: run supabase/migrations/20260526_quest_system_v3.sql in the SQL Editor.',
+          '42703: run quest migrations. 42501 on quest_recall_schedule: run supabase/migrations/20260609_quest_recall_service_role_grants.sql',
       },
       500,
     )
